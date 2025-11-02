@@ -6,33 +6,35 @@
       name="viewport"
       content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1"
     />
-    <title>Tic Tac Toe</title>
+    <title>Prop Hunt Arena</title>
     <script id="rune-translation-data" type="application/json">
       {
         "en": {
-          "(You)": "(You)",
-          "tap to play": "tap to play"
+          "(You)": "(You)"
         },
         "es": {
-          "(You)": "(Tú)",
-          "tap to play": "toca para jugar"
+          "(You)": "(Tú)"
         },
         "pt": {
-          "(You)": "(Você)",
-          "tap to play": "toque para jogar"
+          "(You)": "(Você)"
         },
         "ru": {
-          "(You)": "(Вы)",
-          "tap to play": "нажмите, чтобы играть"
+          "(You)": "(Вы)"
         }
       }
     </script>
   </head>
   <body>
     <main>
-      <div id="board" class="initial"></div>
+      <canvas id="game-canvas"></canvas>
+      <canvas id="minimap-canvas"></canvas>
+      <div id="timer"></div>
+      <div id="game-info"></div>
+      <div id="joystick-container"></div>
+      <button id="scan-button">Scan</button>
       <ul id="playersSection"></ul>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/rune-games-sdk@5/dist/rune.js"></script>
     <script type="module" src="/src/logic.ts"></script>
     <script type="module" src="/src/client.ts"></script>
   </body>

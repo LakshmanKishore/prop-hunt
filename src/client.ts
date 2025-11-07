@@ -18,9 +18,11 @@ const playerElements: { [key: string]: HTMLDivElement } = {}
 const propElements: { [key: string]: HTMLDivElement } = {}
 const wallElements: HTMLDivElement[] = []
 let uiInitialized = false
+let showPropsOnMinimap = false
 
 let game: GameState | undefined
 let yourPlayerId: PlayerId | undefined
+let spectatedPlayerId: PlayerId | undefined
 
 function initUI(playerIds: PlayerId[], game: GameState) {
   playerIds.forEach((playerId) => {
@@ -35,6 +37,9 @@ function initUI(playerIds: PlayerId[], game: GameState) {
            <span>${playerInfo.displayName}</span>`
     playersSection.appendChild(li)
   })
+
+  gameContainer.style.width = `2000px`
+  gameContainer.style.height = `2000px`
 
   for (const wall of game.mapLayout) {
     const wallElement = document.createElement("div")
@@ -92,12 +97,18 @@ function initUI(playerIds: PlayerId[], game: GameState) {
   })
 }
 
+const joystickContainer = document.getElementById("joystick-container")!
+const spectatorUI = document.createElement("div")
+spectatorUI.id = "spectator-ui"
+document.body.appendChild(spectatorUI)
+
 Rune.initClient({
   onChange: ({ game: newGame, yourPlayerId: newYourPlayerId }) => {
     game = newGame
     yourPlayerId = newYourPlayerId
     if (!game) return
     const { players, gameOver, mapLayout } = newGame
+    const yourPlayer = players[yourPlayerId!]
 
     if (!uiInitialized) {
       initUI(Object.keys(players), newGame)
@@ -106,54 +117,85 @@ Rune.initClient({
         document.body.appendChild(catchButton)
       }
 
+      let pingCountdown = 30
+      const pingTimer = document.getElementById("ping-timer")!
+
+      setInterval(() => {
+        pingCountdown--
+        if (pingCountdown <= 0) {
+          showPropsOnMinimap = true
+          setTimeout(() => {
+            showPropsOnMinimap = false
+          }, 3000)
+          pingCountdown = 30
+        }
+        pingTimer.innerText = `Ping in: ${pingCountdown}`
+      }, 1000)
+
       uiInitialized = true
+    }
+
+    if (yourPlayer.isCaught) {
+      joystickContainer.style.display = "none"
+      catchButton.style.display = "none"
+      spectatorUI.style.display = "flex"
+      spectatorUI.innerHTML = ""
+
+      for (const playerId in players) {
+        if (players[playerId]) {
+          const playerIcon = document.createElement("div")
+          playerIcon.classList.add("spectator-player-icon")
+          playerIcon.innerHTML = `<img src="${
+            Rune.getPlayerInfo(playerId).avatarUrl
+          }" />`
+          playerIcon.onclick = () => {
+            spectatedPlayerId = playerId
+          }
+          spectatorUI.appendChild(playerIcon)
+        }
+      }
+    } else {
+      joystickContainer.style.display = "block"
+      catchButton.style.display = "block"
+      spectatorUI.style.display = "none"
     }
 
     for (const playerId in players) {
       const player = players[playerId]
-
       const playerElement = playerElements[playerId]
 
       if (player.isHunter) {
-        playerElement.innerHTML = `<img src="${Rune.getPlayerInfo(playerId).avatarUrl}" />`
-
+        playerElement.innerHTML = `<img src="${
+          Rune.getPlayerInfo(playerId).avatarUrl
+        }" />`
         playerElement.style.backgroundColor = "red"
-
         playerElement.style.width = "50px"
-
         playerElement.style.height = "50px"
       } else {
         playerElement.innerHTML = ""
-
         playerElement.style.backgroundColor = "transparent"
-
+        playerElement.classList.remove("player")
+        playerElement.classList.add("prop")
         playerElement.style.backgroundImage = `url(${getImageUrl(
           player.propType!,
           "props"
         )})`
-        const img = new Image()
-
-        img.src = getImageUrl(player.propType!, "props")
-
-        img.onload = () => {
-          playerElement.style.width = `${img.width}px`
-
-          playerElement.style.height = `${img.height}px`
-        }
+        playerElement.style.width = `50px`
+        playerElement.style.height = `50px`
       }
 
       playerElement.style.left = `${player.position.x - 25}px`
-
       playerElement.style.top = `${player.position.y - 25}px`
 
       if (player.isCaught) {
         playerElement.style.opacity = "0.5"
+      } else {
+        playerElement.style.opacity = "1"
       }
     }
 
     for (const propId in newGame.props) {
       const prop = newGame.props[propId]
-
       const propElement = propElements[propId]
 
       if (propElement) {
@@ -167,11 +209,8 @@ Rune.initClient({
           propElement.style.width = `50px`
           propElement.style.height = `50px`
         }
-
         propElement.style.left = `${prop.position.x}px`
-
         propElement.style.top = `${prop.position.y}px`
-
         propElement.style.transform = `rotate(${prop.rotation}deg)`
       }
     }
@@ -181,26 +220,62 @@ Rune.initClient({
     for (const wall of mapLayout) {
       const minimapWall = document.createElement("div")
       minimapWall.classList.add("minimap-wall")
-      minimapWall.style.left = `${(wall.x / 1000) * 200}px`
-      minimapWall.style.top = `${(wall.y / 1000) * 200}px`
-      minimapWall.style.width = `${(wall.width / 1000) * 200}px`
-      minimapWall.style.height = `${(wall.height / 1000) * 200}px`
+      minimapWall.style.left = `${(wall.x / 2000) * 150}px`
+      minimapWall.style.top = `${(wall.y / 2000) * 150}px`
+      minimapWall.style.width = `${(wall.width / 2000) * 150}px`
+      minimapWall.style.height = `${(wall.height / 2000) * 150}px`
       minimap.appendChild(minimapWall)
     }
-    for (const playerId in players) {
-      const player = players[playerId]
-      const minimapPlayer = document.createElement("div")
-      minimapPlayer.classList.add("minimap-player")
-      minimapPlayer.style.left = `${(player.position.x / 1000) * 200}px`
-      minimapPlayer.style.top = `${(player.position.y / 1000) * 200}px`
-      minimap.appendChild(minimapPlayer)
+
+    if (yourPlayer) {
+      if (showPropsOnMinimap) {
+        for (const playerId in players) {
+          const player = players[playerId]
+          if (!player.isCaught) {
+            const minimapPlayer = document.createElement("div")
+            minimapPlayer.classList.add("minimap-player")
+            minimapPlayer.style.backgroundColor = player.isHunter
+              ? "red"
+              : "blue"
+            minimapPlayer.style.left = `${(player.position.x / 2000) * 150}px`
+            minimapPlayer.style.top = `${(player.position.y / 2000) * 150}px`
+            minimap.appendChild(minimapPlayer)
+          }
+        }
+      } else {
+        if (yourPlayer.isHunter) {
+          const minimapPlayer = document.createElement("div")
+          minimapPlayer.classList.add("minimap-player")
+          minimapPlayer.style.left = `${
+            (yourPlayer.position.x / 2000) * 150
+          }px`
+          minimapPlayer.style.top = `${(yourPlayer.position.y / 2000) * 150}px`
+          minimap.appendChild(minimapPlayer)
+        } else {
+          for (const playerId in players) {
+            const player = players[playerId]
+            if (!player.isHunter && !player.isCaught) {
+              const minimapPlayer = document.createElement("div")
+              minimapPlayer.classList.add("minimap-player")
+              minimapPlayer.style.backgroundColor = "blue"
+              minimapPlayer.style.left = `${
+                (player.position.x / 2000) * 150
+              }px`
+              minimapPlayer.style.top = `${(player.position.y / 2000) * 150}px`
+              minimap.appendChild(minimapPlayer)
+            }
+          }
+        }
+      }
     }
 
     // Camera follow
-    const yourPlayer = players[yourPlayerId!]
-    if (yourPlayer) {
-      const cameraX = yourPlayer.position.x - window.innerWidth / 2
-      const cameraY = yourPlayer.position.y - window.innerHeight / 2
+    const playerToFollow = spectatedPlayerId
+      ? players[spectatedPlayerId]
+      : yourPlayer
+    if (playerToFollow) {
+      const cameraX = playerToFollow.position.x - window.innerWidth / 2
+      const cameraY = playerToFollow.position.y - window.innerHeight / 2
       gameContainer.style.transform = `translate(${-cameraX}px, ${-cameraY}px)`
     }
 
@@ -225,7 +300,7 @@ Rune.initClient({
 document.addEventListener("keydown", (e) => {
   if (!game || !yourPlayerId) return
   const player = game.players[yourPlayerId]
-  if (!player || game.gameOver) return
+  if (!player || game.gameOver || player.isCaught) return
 
   const joystick = { x: 0, y: 0 }
 
@@ -250,7 +325,7 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("keyup", (e) => {
   if (!game || !yourPlayerId) return
   const player = game.players[yourPlayerId]
-  if (!player || game.gameOver) return
+  if (!player || game.gameOver || player.isCaught) return
 
   switch (e.key) {
     case "ArrowUp":

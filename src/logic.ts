@@ -41,13 +41,13 @@ declare global {
 }
 
 import { propTypes } from "./propTypes.ts"
-const ARENA_WIDTH = 1000
-const ARENA_HEIGHT = 1000
+const ARENA_WIDTH = 2000
+const ARENA_HEIGHT = 2000
 const PLAYER_RADIUS = 25
 const WALL_THICKNESS = 10
 
-const MIN_ROOM_SIZE = 200
-const MAX_ROOMS = 6
+const MIN_ROOM_SIZE = 400
+const MAX_ROOMS = 8
 const DOOR_SIZE = 120
 
 function generateMapLayout(): {
@@ -72,7 +72,8 @@ function generateMapLayout(): {
     const horizontal = width < height
 
     if (horizontal) {
-      const divideAt = Math.floor(height / 2)
+      const divideAt =
+        Math.floor(Math.random() * (height / 3)) + Math.floor(height / 3)
       const doorAt =
         Math.floor(Math.random() * (width - DOOR_SIZE)) + DOOR_SIZE / 2
 
@@ -92,7 +93,8 @@ function generateMapLayout(): {
         height - divideAt - WALL_THICKNESS
       )
     } else {
-      const divideAt = Math.floor(width / 2)
+      const divideAt =
+        Math.floor(Math.random() * (width / 3)) + Math.floor(width / 3)
       const doorAt =
         Math.floor(Math.random() * (height - DOOR_SIZE)) + DOOR_SIZE / 2
 
@@ -141,7 +143,7 @@ function isCollidingWithWall(
 
 Rune.initLogic({
   minPlayers: 2,
-  maxPlayers: 4,
+  maxPlayers: 6,
   setup: (allPlayerIds) => {
     const mapLayout = generateMapLayout()
     const initialState: GameState = {
@@ -151,11 +153,34 @@ Rune.initLogic({
       mapLayout: mapLayout,
     }
 
+    // Get valid spawn points for players
+    const validPlayerSpawnPoints: { x: number; y: number }[] = []
+    for (
+      let x = PLAYER_RADIUS;
+      x < ARENA_WIDTH - PLAYER_RADIUS;
+      x += PLAYER_RADIUS * 2
+    ) {
+      for (
+        let y = PLAYER_RADIUS;
+        y < ARENA_HEIGHT - PLAYER_RADIUS;
+        y += PLAYER_RADIUS * 2
+      ) {
+        if (!isCollidingWithWall(x, y, PLAYER_RADIUS, mapLayout)) {
+          validPlayerSpawnPoints.push({ x, y })
+        }
+      }
+    }
+
     // Initialize players
     allPlayerIds.forEach((playerId, index) => {
       const isHunter = index === 0
+      const spawnIndex = Math.floor(
+        Math.random() * validPlayerSpawnPoints.length
+      )
+      const position = validPlayerSpawnPoints.splice(spawnIndex, 1)[0]
+
       initialState.players[playerId] = {
-        position: { x: 100, y: 100 },
+        position,
         velocity: { x: 0, y: 0 },
         isHunter,
         propType: isHunter
@@ -201,7 +226,7 @@ Rune.initLogic({
     move: ({ x, y }, { game, playerId }) => {
       if (game.gameOver) return
       const player = game.players[playerId]
-      if (!player) {
+      if (!player || player.isCaught) {
         throw Rune.invalidAction()
       }
 
@@ -225,7 +250,7 @@ Rune.initLogic({
       for (const otherPlayerId in game.players) {
         if (otherPlayerId === playerId) continue
         const otherPlayer = game.players[otherPlayerId]
-        if (otherPlayer.isHunter) continue
+        if (otherPlayer.isHunter || otherPlayer.isCaught) continue
 
         const distance = Math.sqrt(
           Math.pow(hunter.position.x - otherPlayer.position.x, 2) +
@@ -234,13 +259,20 @@ Rune.initLogic({
 
         if (distance < 50) {
           otherPlayer.isCaught = true
-          game.gameOver = true
-          Rune.gameOver({
-            players: {
-              [playerId]: "WON",
-              [otherPlayerId]: "LOST",
-            },
-          })
+
+          const props = Object.values(game.players).filter((p) => !p.isHunter)
+          const allPropsCaught = props.every((p) => p.isCaught)
+
+          if (allPropsCaught) {
+            game.gameOver = true
+            const playerStates: { [key: string]: "WON" | "LOST" } = {}
+            for (const pId in game.players) {
+              playerStates[pId] = game.players[pId].isHunter ? "WON" : "LOST"
+            }
+            Rune.gameOver({
+              players: playerStates,
+            })
+          }
         }
       }
     },
@@ -252,18 +284,32 @@ Rune.initLogic({
       const nextX = player.position.x + player.velocity.x
       const nextY = player.position.y + player.velocity.y
 
+      // Check for collision on X axis
       if (
-        !isCollidingWithWall(nextX, nextY, PLAYER_RADIUS, game.mapLayout) &&
+        !isCollidingWithWall(
+          nextX,
+          player.position.y,
+          PLAYER_RADIUS,
+          game.mapLayout
+        ) &&
         nextX > PLAYER_RADIUS &&
-        nextX < ARENA_WIDTH - PLAYER_RADIUS &&
+        nextX < ARENA_WIDTH - PLAYER_RADIUS
+      ) {
+        player.position.x = nextX
+      }
+
+      // Check for collision on Y axis
+      if (
+        !isCollidingWithWall(
+          player.position.x,
+          nextY,
+          PLAYER_RADIUS,
+          game.mapLayout
+        ) &&
         nextY > PLAYER_RADIUS &&
         nextY < ARENA_HEIGHT - PLAYER_RADIUS
       ) {
-        player.position.x = nextX
         player.position.y = nextY
-      } else {
-        player.velocity.x = 0
-        player.velocity.y = 0
       }
     }
   },

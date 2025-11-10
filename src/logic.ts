@@ -28,6 +28,8 @@ export interface GameState {
 
   gameOver: boolean
 
+  remainingTime: number
+
   mapLayout: { x: number; y: number; width: number; height: number }[]
 }
 
@@ -141,6 +143,15 @@ function isCollidingWithWall(
   return false
 }
 
+function shuffleArray<T>(array: T[]): T[] {
+  const newArray = array.slice() // Create a copy
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[newArray[i], newArray[j]] = [newArray[j], newArray[i]]
+  }
+  return newArray
+}
+
 Rune.initLogic({
   minPlayers: 2,
   maxPlayers: 6,
@@ -150,6 +161,7 @@ Rune.initLogic({
       players: {},
       props: {},
       gameOver: false,
+      remainingTime: 300,
       mapLayout: mapLayout,
     }
 
@@ -171,13 +183,13 @@ Rune.initLogic({
       }
     }
 
+    // Shuffle validPlayerSpawnPoints to assign random positions without mutation
+    const shuffledSpawnPoints = shuffleArray(validPlayerSpawnPoints)
+
     // Initialize players
     allPlayerIds.forEach((playerId, index) => {
       const isHunter = index === 0
-      const spawnIndex = Math.floor(
-        Math.random() * validPlayerSpawnPoints.length
-      )
-      const position = validPlayerSpawnPoints.splice(spawnIndex, 1)[0]
+      const position = shuffledSpawnPoints[index]
 
       initialState.players[playerId] = {
         position,
@@ -191,7 +203,7 @@ Rune.initLogic({
     })
 
     // Initialize props
-    const validSpawnPoints: { x: number; y: number }[] = []
+    const tempValidSpawnPoints: { x: number; y: number }[] = []
     for (let x = 0; x < ARENA_WIDTH; x += 20) {
       for (let y = 0; y < ARENA_HEIGHT; y += 20) {
         if (
@@ -201,16 +213,16 @@ Rune.initLogic({
             isCollidingWithWall(x, y - 20, 25, mapLayout) ||
             isCollidingWithWall(x, y + 20, 25, mapLayout))
         ) {
-          validSpawnPoints.push({ x, y })
+          tempValidSpawnPoints.push({ x, y })
         }
       }
     }
+    const validSpawnPoints = shuffleArray(tempValidSpawnPoints)
 
     for (let i = 0; i < 20; i++) {
-      if (validSpawnPoints.length === 0) break
+      if (i >= validSpawnPoints.length) break
 
-      const spawnIndex = Math.floor(Math.random() * validSpawnPoints.length)
-      const { x, y } = validSpawnPoints.splice(spawnIndex, 1)[0]
+      const { x, y } = validSpawnPoints[i]
 
       initialState.props[`prop${i}`] = {
         position: { x, y },
@@ -278,13 +290,29 @@ Rune.initLogic({
     },
   },
   update: ({ game }) => {
+    if (game.gameOver) {
+      return
+    }
+
+    game.remainingTime -= 1 / 30
+
+    if (game.remainingTime <= 0) {
+      game.gameOver = true
+      const playerStates: { [key: string]: "WON" | "LOST" } = {}
+      for (const pId in game.players) {
+        playerStates[pId] = game.players[pId].isHunter ? "LOST" : "WON"
+      }
+      Rune.gameOver({
+        players: playerStates,
+      })
+      return
+    }
+
     for (const playerId in game.players) {
       const player = game.players[playerId]
 
       const nextX = player.position.x + player.velocity.x
-      const nextY = player.position.y + player.velocity.y
-
-      // Check for collision on X axis
+      const nextY = player.position.y + player.velocity.y // Check for collision on X axis
       if (
         !isCollidingWithWall(
           nextX,

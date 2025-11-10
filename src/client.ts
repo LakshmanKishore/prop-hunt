@@ -18,11 +18,26 @@ const playerElements: { [key: string]: HTMLDivElement } = {}
 const propElements: { [key: string]: HTMLDivElement } = {}
 const wallElements: HTMLDivElement[] = []
 let uiInitialized = false
-let showPropsOnMinimap = false
 
 let game: GameState | undefined
 let yourPlayerId: PlayerId | undefined
 let spectatedPlayerId: PlayerId | undefined
+
+let pingCountdown = 30
+let showPropsOnMinimap = false
+setInterval(() => {
+  pingCountdown--
+  if (pingCountdown <= 0) {
+    showPropsOnMinimap = true
+    setTimeout(() => {
+      showPropsOnMinimap = false
+    }, 3000)
+    pingCountdown = 30
+  }
+
+  const pingTimer = document.getElementById("ping-timer")!
+  pingTimer.innerText = `Ping in: ${pingCountdown}`
+}, 1000)
 
 function initUI(playerIds: PlayerId[], game: GameState) {
   playerIds.forEach((playerId) => {
@@ -53,8 +68,19 @@ function initUI(playerIds: PlayerId[], game: GameState) {
   }
 
   for (const propId in game.props) {
+    const prop = game.props[propId]
     const propElement = document.createElement("div")
     propElement.classList.add("prop")
+    propElement.style.backgroundImage = `url(${getImageUrl(
+      prop.propType,
+      "props"
+    )})`
+    const img = new Image()
+    img.src = getImageUrl(prop.propType, "props")
+    img.onload = () => {
+      propElement.style.width = `50px`
+      propElement.style.height = `50px`
+    }
     gameContainer.appendChild(propElement)
     propElements[propId] = propElement
   }
@@ -62,12 +88,19 @@ function initUI(playerIds: PlayerId[], game: GameState) {
   let joystickActive = false
   let joystickStartX = 0
   let joystickStartY = 0
+  let moveInterval: number | undefined
+  const currentJoystick = { x: 0, y: 0 }
 
   window.addEventListener("touchstart", (e) => {
     joystickActive = true
     const touch = e.touches[0]
     joystickStartX = touch.clientX
     joystickStartY = touch.clientY
+
+    if (moveInterval) clearInterval(moveInterval)
+    moveInterval = setInterval(() => {
+      Rune.actions.move({ ...currentJoystick })
+    }, 50)
   })
 
   window.addEventListener("touchmove", (e) => {
@@ -86,13 +119,17 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     joystickHandle.style.left = `${50 + handleX}px`
     joystickHandle.style.top = `${50 + handleY}px`
 
-    Rune.actions.move({ x: handleX, y: handleY })
+    currentJoystick.x = handleX
+    currentJoystick.y = handleY
   })
 
   window.addEventListener("touchend", () => {
     joystickActive = false
+    if (moveInterval) clearInterval(moveInterval)
     joystickHandle.style.left = "50px"
     joystickHandle.style.top = "50px"
+    currentJoystick.x = 0
+    currentJoystick.y = 0
     Rune.actions.move({ x: 0, y: 0 })
   })
 }
@@ -107,8 +144,18 @@ Rune.initClient({
     game = newGame
     yourPlayerId = newYourPlayerId
     if (!game) return
-    const { players, gameOver, mapLayout } = newGame
-    const yourPlayer = players[yourPlayerId!]
+    const { players, mapLayout, remainingTime } = newGame
+
+    // Unconditionally update timers for all players
+    const gameTimer = document.getElementById("game-timer")!
+    const minutes = Math.floor(remainingTime / 60)
+    const seconds = Math.floor(remainingTime % 60)
+    gameTimer.innerText = `${minutes}:${seconds.toString().padStart(2, "0")}`
+
+    if (!yourPlayerId || !players[yourPlayerId]) {
+      // Player data not available yet, wait for next update
+      return
+    }
 
     if (!uiInitialized) {
       initUI(Object.keys(players), newGame)
@@ -117,23 +164,10 @@ Rune.initClient({
         document.body.appendChild(catchButton)
       }
 
-      let pingCountdown = 30
-      const pingTimer = document.getElementById("ping-timer")!
-
-      setInterval(() => {
-        pingCountdown--
-        if (pingCountdown <= 0) {
-          showPropsOnMinimap = true
-          setTimeout(() => {
-            showPropsOnMinimap = false
-          }, 3000)
-          pingCountdown = 30
-        }
-        pingTimer.innerText = `Ping in: ${pingCountdown}`
-      }, 1000)
-
       uiInitialized = true
     }
+
+    const yourPlayer = players[yourPlayerId!]
 
     if (yourPlayer.isCaught) {
       joystickContainer.style.display = "none"
@@ -199,16 +233,6 @@ Rune.initClient({
       const propElement = propElements[propId]
 
       if (propElement) {
-        propElement.style.backgroundImage = `url(${getImageUrl(
-          prop.propType,
-          "props"
-        )})`
-        const img = new Image()
-        img.src = getImageUrl(prop.propType, "props")
-        img.onload = () => {
-          propElement.style.width = `50px`
-          propElement.style.height = `50px`
-        }
         propElement.style.left = `${prop.position.x}px`
         propElement.style.top = `${prop.position.y}px`
         propElement.style.transform = `rotate(${prop.rotation}deg)`
@@ -228,7 +252,17 @@ Rune.initClient({
     }
 
     if (yourPlayer) {
-      if (showPropsOnMinimap) {
+      if (yourPlayer.isCaught) {
+        for (const playerId in players) {
+          const player = players[playerId]
+          const minimapPlayer = document.createElement("div")
+          minimapPlayer.classList.add("minimap-player")
+          minimapPlayer.style.backgroundColor = player.isHunter ? "red" : "blue"
+          minimapPlayer.style.left = `${(player.position.x / 2000) * 150}px`
+          minimapPlayer.style.top = `${(player.position.y / 2000) * 150}px`
+          minimap.appendChild(minimapPlayer)
+        }
+      } else if (showPropsOnMinimap) {
         for (const playerId in players) {
           const player = players[playerId]
           if (!player.isCaught) {
@@ -246,9 +280,7 @@ Rune.initClient({
         if (yourPlayer.isHunter) {
           const minimapPlayer = document.createElement("div")
           minimapPlayer.classList.add("minimap-player")
-          minimapPlayer.style.left = `${
-            (yourPlayer.position.x / 2000) * 150
-          }px`
+          minimapPlayer.style.left = `${(yourPlayer.position.x / 2000) * 150}px`
           minimapPlayer.style.top = `${(yourPlayer.position.y / 2000) * 150}px`
           minimap.appendChild(minimapPlayer)
         } else {
@@ -258,9 +290,7 @@ Rune.initClient({
               const minimapPlayer = document.createElement("div")
               minimapPlayer.classList.add("minimap-player")
               minimapPlayer.style.backgroundColor = "blue"
-              minimapPlayer.style.left = `${
-                (player.position.x / 2000) * 150
-              }px`
+              minimapPlayer.style.left = `${(player.position.x / 2000) * 150}px`
               minimapPlayer.style.top = `${(player.position.y / 2000) * 150}px`
               minimap.appendChild(minimapPlayer)
             }
@@ -279,17 +309,13 @@ Rune.initClient({
       gameContainer.style.transform = `translate(${-cameraX}px, ${-cameraY}px)`
     }
 
-    if (gameOver) {
+    if (newGame.gameOver) {
       const message = document.createElement("div")
       message.id = "game-over-message"
-      const winner = Object.values(newGame.players).find(
-        (p: { isHunter: boolean; isCaught: boolean }) =>
-          p.isHunter && !p.isCaught
-      )
-      if (winner) {
-        message.innerText = `Hunter wins!`
+      if (newGame.gameOver.players[yourPlayerId!] === "WON") {
+        message.innerText = "You Win!"
       } else {
-        message.innerText = `Props win!`
+        message.innerText = "You Lose!"
       }
       document.body.appendChild(message)
       catchButton.remove()

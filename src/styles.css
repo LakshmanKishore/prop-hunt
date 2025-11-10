@@ -146,17 +146,20 @@ main {
 
 
 #ping-timer {
-
   position: absolute;
-
   top: 10px;
-
   left: 10px;
-
   font-size: 24px;
-
   color: white;
+}
 
+#game-timer {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
+  color: white;
 }
 
 #spectator-ui {

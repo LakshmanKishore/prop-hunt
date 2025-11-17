@@ -42,7 +42,7 @@ declare global {
   const Rune: RuneClient<GameState, GameActions>
 }
 
-import { propTypes } from "./propTypes.ts"
+import { propTypes } from "./spriteManager.ts"
 const ARENA_WIDTH = 2000
 const ARENA_HEIGHT = 2000
 const PLAYER_RADIUS = 25
@@ -239,7 +239,7 @@ Rune.initLogic({
       if (game.gameOver) return
       const player = game.players[playerId]
       if (!player || player.isCaught) {
-        throw Rune.invalidAction()
+        return
       }
 
       const magnitude = Math.sqrt(x * x + y * y)

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-g" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bounding Box Viewer</title>
+    <style>
+      .container {
+        position: relative;
+        display: inline-block;
+        margin: 20px;
+        border: 1px solid black;
+      }
+      .bounding-box {
+        position: absolute;
+        border: 2px solid red;
+        box-sizing: border-box;
+      }
+      img {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Bounding Box Viewer</h1>
+    <div id="image-container"></div>
+
+    <script type="module">
+      async function loadImages() {
+        const imageContainer = document.getElementById("image-container");
+        try {
+          const response = await fetch("./src/assets/prop-coordinates.json");
+          const propCoordinates = await response.json();
+
+          for (const imageName in propCoordinates) {
+            const container = document.createElement("div");
+            container.classList.add("container");
+
+            const img = document.createElement("img");
+            img.src = `./src/assets/fprops/${imageName}`;
+            container.appendChild(img);
+
+            const boxes = propCoordinates[imageName];
+            for (const box of boxes) {
+              const boxDiv = document.createElement("div");
+              boxDiv.classList.add("bounding-box");
+              boxDiv.style.left = `${box.minX}px`;
+              boxDiv.style.top = `${box.minY}px`;
+              boxDiv.style.width = `${box.maxX - box.minX}px`;
+              boxDiv.style.height = `${box.maxY - box.minY}px`;
+              container.appendChild(boxDiv);
+            }
+            imageContainer.appendChild(container);
+          }
+        } catch (error) {
+          console.error("Error loading prop coordinates:", error);
+        }
+      }
+      loadImages();
+    </script>
+  </body>
+</html>

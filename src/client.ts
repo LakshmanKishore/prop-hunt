@@ -2,7 +2,7 @@ import "./styles.css"
 
 import { PlayerId } from "rune-sdk"
 import { GameState } from "./logic.ts"
-import { getImageUrl } from "./getImageUrl.ts"
+import { getSpriteInfo } from "./spriteManager.ts"
 
 const gameContainer = document.getElementById("game-container")!
 const minimap = document.getElementById("minimap")!
@@ -67,19 +67,19 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     wallElements.push(wallElement)
   }
 
+  console.log("game.props", game.props)
   for (const propId in game.props) {
     const prop = game.props[propId]
     const propElement = document.createElement("div")
     propElement.classList.add("prop")
-    propElement.style.backgroundImage = `url(${getImageUrl(
-      prop.propType,
-      "props"
-    )})`
-    const img = new Image()
-    img.src = getImageUrl(prop.propType, "props")
-    img.onload = () => {
-      propElement.style.width = `50px`
-      propElement.style.height = `50px`
+    console.log("prop.propType", prop.propType)
+    const spriteInfo = getSpriteInfo(prop.propType)
+    console.log("spriteInfo", spriteInfo)
+    if (spriteInfo) {
+      propElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
+      propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
+      propElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
+      propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
     }
     gameContainer.appendChild(propElement)
     propElements[propId] = propElement
@@ -210,12 +210,13 @@ Rune.initClient({
         playerElement.style.backgroundColor = "transparent"
         playerElement.classList.remove("player")
         playerElement.classList.add("prop")
-        playerElement.style.backgroundImage = `url(${getImageUrl(
-          player.propType!,
-          "props"
-        )})`
-        playerElement.style.width = `50px`
-        playerElement.style.height = `50px`
+        const spriteInfo = getSpriteInfo(player.propType!)
+        if (spriteInfo) {
+          playerElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
+          playerElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
+          playerElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
+          playerElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
+        }
       }
 
       playerElement.style.left = `${player.position.x - 25}px`
@@ -312,7 +313,7 @@ Rune.initClient({
     if (newGame.gameOver) {
       const message = document.createElement("div")
       message.id = "game-over-message"
-      if (newGame.gameOver.players[yourPlayerId!] === "WON") {
+      if (newGame.players[yourPlayerId!].isHunter) {
         message.innerText = "You Win!"
       } else {
         message.innerText = "You Lose!"

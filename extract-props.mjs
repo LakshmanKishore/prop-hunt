@@ -153,7 +153,11 @@ async function main() {
     const { width, height, pixels } = decoder.decode()
 
     const coordinates = findBoundingBoxes(width, height, pixels)
-    allCoordinates[file] = coordinates
+    allCoordinates[file] = {
+      sheetWidth: width,
+      sheetHeight: height,
+      sprites: coordinates,
+    }
   }
 
   await fs.writeFile(outputFile, JSON.stringify(allCoordinates, null, 2))

@@ -9,13 +9,10 @@ const minimap = document.getElementById("minimap")!
 const playersSection = document.getElementById("playersSection")!
 
 const joystickHandle = document.getElementById("joystick-handle")!
-const catchButton = document.createElement("button")
-catchButton.id = "catch-button"
-catchButton.innerText = "Catch"
-catchButton.addEventListener("click", () => Rune.actions.catch())
 
 const playerElements: { [key: string]: HTMLDivElement } = {}
 const propElements: { [key: string]: HTMLDivElement } = {}
+const bulletElements: { [key: string]: HTMLDivElement } = {}
 const wallElements: HTMLDivElement[] = []
 let uiInitialized = false
 
@@ -80,6 +77,7 @@ function initUI(playerIds: PlayerId[], game: GameState) {
       propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
       propElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
       propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
+      propElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
     }
     gameContainer.appendChild(propElement)
     propElements[propId] = propElement
@@ -160,10 +158,6 @@ Rune.initClient({
     if (!uiInitialized) {
       initUI(Object.keys(players), newGame)
 
-      if (players[yourPlayerId!].isHunter) {
-        document.body.appendChild(catchButton)
-      }
-
       uiInitialized = true
     }
 
@@ -171,7 +165,6 @@ Rune.initClient({
 
     if (yourPlayer.isCaught) {
       joystickContainer.style.display = "none"
-      catchButton.style.display = "none"
       spectatorUI.style.display = "flex"
       spectatorUI.innerHTML = ""
 
@@ -190,7 +183,6 @@ Rune.initClient({
       }
     } else {
       joystickContainer.style.display = "block"
-      catchButton.style.display = "block"
       spectatorUI.style.display = "none"
     }
 
@@ -216,6 +208,13 @@ Rune.initClient({
           playerElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
           playerElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
           playerElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
+          playerElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
+        }
+
+        playerElement.onclick = () => {
+          if (yourPlayerId && players[yourPlayerId].isHunter) {
+            Rune.actions.shoot(playerId)
+          }
         }
       }
 
@@ -227,6 +226,24 @@ Rune.initClient({
       } else {
         playerElement.style.opacity = "1"
       }
+
+      if (playerId === yourPlayerId && !player.isHunter) {
+        let healthBar = playerElement.querySelector(
+          ".health-bar"
+        ) as HTMLDivElement
+        if (!healthBar) {
+          healthBar = document.createElement("div")
+          healthBar.classList.add("health-bar")
+          const healthBarInner = document.createElement("div")
+          healthBarInner.classList.add("health-bar-inner")
+          healthBar.appendChild(healthBarInner)
+          playerElement.appendChild(healthBar)
+        }
+        const healthBarInner = healthBar.querySelector(
+          ".health-bar-inner"
+        ) as HTMLDivElement
+        healthBarInner.style.width = `${player.health}%`
+      }
     }
 
     for (const propId in newGame.props) {
@@ -237,6 +254,30 @@ Rune.initClient({
         propElement.style.left = `${prop.position.x}px`
         propElement.style.top = `${prop.position.y}px`
         propElement.style.transform = `rotate(${prop.rotation}deg)`
+      }
+    }
+
+    // Render bullets
+    for (const bulletId in newGame.bullets) {
+      const bullet = newGame.bullets[bulletId]
+      let bulletElement = bulletElements[bulletId]
+
+      if (!bulletElement) {
+        bulletElement = document.createElement("div")
+        bulletElement.classList.add("bullet")
+        gameContainer.appendChild(bulletElement)
+        bulletElements[bulletId] = bulletElement
+      }
+
+      bulletElement.style.left = `${bullet.position.x - 5}px`
+      bulletElement.style.top = `${bullet.position.y - 5}px`
+    }
+
+    // Remove old bullets
+    for (const bulletId in bulletElements) {
+      if (!newGame.bullets[bulletId]) {
+        bulletElements[bulletId].remove()
+        delete bulletElements[bulletId]
       }
     }
 
@@ -319,7 +360,6 @@ Rune.initClient({
         message.innerText = "You Lose!"
       }
       document.body.appendChild(message)
-      catchButton.remove()
     }
   },
 })

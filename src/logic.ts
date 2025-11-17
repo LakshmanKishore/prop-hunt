@@ -4,14 +4,19 @@ export interface GameState {
   players: {
     [key: string]: {
       position: { x: number; y: number }
-
       velocity: { x: number; y: number }
-
       isHunter: boolean
-
       propType?: string
-
       isCaught: boolean
+      health: number
+    }
+  }
+
+  bullets: {
+    [key: string]: {
+      position: { x: number; y: number }
+      velocity: { x: number; y: number }
+      id: string
     }
   }
 
@@ -35,7 +40,7 @@ export interface GameState {
 
 type GameActions = {
   move: (joystick: { x: number; y: number }) => void
-  catch: () => void
+  shoot: (targetId: string) => void
 }
 
 declare global {
@@ -159,6 +164,7 @@ Rune.initLogic({
     const mapLayout = generateMapLayout()
     const initialState: GameState = {
       players: {},
+      bullets: {},
       props: {},
       gameOver: false,
       remainingTime: 300,
@@ -199,6 +205,7 @@ Rune.initLogic({
           ? undefined
           : propTypes[Math.floor(Math.random() * propTypes.length)],
         isCaught: false,
+        health: isHunter ? 0 : 100,
       }
     })
 
@@ -252,40 +259,32 @@ Rune.initLogic({
         player.velocity.y = 0
       }
     },
-    catch: (_, { game, playerId }) => {
+    shoot: (targetId, { game, playerId }) => {
       if (game.gameOver) return
       const hunter = game.players[playerId]
       if (!hunter.isHunter) {
         throw Rune.invalidAction()
       }
 
-      for (const otherPlayerId in game.players) {
-        if (otherPlayerId === playerId) continue
-        const otherPlayer = game.players[otherPlayerId]
-        if (otherPlayer.isHunter || otherPlayer.isCaught) continue
+      const targetPlayer = game.players[targetId]
+      if (!targetPlayer || targetPlayer.isHunter || targetPlayer.isCaught) {
+        return
+      }
 
-        const distance = Math.sqrt(
-          Math.pow(hunter.position.x - otherPlayer.position.x, 2) +
-            Math.pow(hunter.position.y - otherPlayer.position.y, 2)
-        )
+      const bulletSpeed = 20
+      const angle = Math.atan2(
+        targetPlayer.position.y - hunter.position.y,
+        targetPlayer.position.x - hunter.position.x
+      )
+      const bulletId = Rune.gameTime().toString() + playerId
 
-        if (distance < 50) {
-          otherPlayer.isCaught = true
-
-          const props = Object.values(game.players).filter((p) => !p.isHunter)
-          const allPropsCaught = props.every((p) => p.isCaught)
-
-          if (allPropsCaught) {
-            game.gameOver = true
-            const playerStates: { [key: string]: "WON" | "LOST" } = {}
-            for (const pId in game.players) {
-              playerStates[pId] = game.players[pId].isHunter ? "WON" : "LOST"
-            }
-            Rune.gameOver({
-              players: playerStates,
-            })
-          }
-        }
+      game.bullets[bulletId] = {
+        position: { ...hunter.position },
+        velocity: {
+          x: Math.cos(angle) * bulletSpeed,
+          y: Math.sin(angle) * bulletSpeed,
+        },
+        id: bulletId,
       }
     },
   },
@@ -338,6 +337,61 @@ Rune.initLogic({
         nextY < ARENA_HEIGHT - PLAYER_RADIUS
       ) {
         player.position.y = nextY
+      }
+
+      // Update bullets
+      for (const bulletId in game.bullets) {
+        const bullet = game.bullets[bulletId]
+        bullet.position.x += bullet.velocity.x
+        bullet.position.y += bullet.velocity.y
+
+        // Check for collision with players
+        for (const playerId in game.players) {
+          const player = game.players[playerId]
+          if (player.isHunter || player.isCaught) continue
+
+          const distance = Math.sqrt(
+            Math.pow(bullet.position.x - player.position.x, 2) +
+              Math.pow(bullet.position.y - player.position.y, 2)
+          )
+
+          if (distance < PLAYER_RADIUS) {
+            player.health -= 25 // Bullet damage
+            if (player.health <= 0) {
+              player.isCaught = true
+
+              const props = Object.values(game.players).filter(
+                (p) => !p.isHunter
+              )
+              const allPropsCaught = props.every((p) => p.isCaught)
+
+              if (allPropsCaught) {
+                game.gameOver = true
+                const playerStates: { [key: string]: "WON" | "LOST" } = {}
+                for (const pId in game.players) {
+                  playerStates[pId] = game.players[pId].isHunter
+                    ? "WON"
+                    : "LOST"
+                }
+                Rune.gameOver({
+                  players: playerStates,
+                })
+              }
+            }
+            delete game.bullets[bulletId] // Remove bullet on hit
+            break
+          }
+        }
+
+        // Remove bullets that go off-screen
+        if (
+          bullet.position.x < 0 ||
+          bullet.position.x > ARENA_WIDTH ||
+          bullet.position.y < 0 ||
+          bullet.position.y > ARENA_HEIGHT
+        ) {
+          delete game.bullets[bulletId]
+        }
       }
     }
   },

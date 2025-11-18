@@ -51,7 +51,7 @@ body {
   font-size: 10px;
   box-sizing: border-box;
   border: 2px solid #fff;
-  z-index: 10;
+  z-index: 210;
 }
 
 .player img {
@@ -113,6 +113,34 @@ body {
   z-index: 100;
   cursor: pointer;
 }
+
+#change-prop-button,
+#smoke-bomb-button {
+  position: fixed;
+  right: 20px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  background-color: #4caf50;
+  color: white;
+  cursor: pointer;
+  z-index: 100;
+}
+
+#change-prop-button {
+  bottom: 120px;
+}
+
+#smoke-bomb-button {
+  bottom: 170px;
+}
+
+#change-prop-button:disabled,
+#smoke-bomb-button:disabled {
+  background-color: #888;
+  cursor: not-allowed;
+}
+
 
 #game-timer {
   position: fixed;
@@ -221,4 +249,16 @@ body {
   color: gold;
   text-shadow: 3px 3px 5px black;
   z-index: 300;
+}
+
+.smoke-bomb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 200;
+}
+
+.smoke-bomb-other {
+  background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 70%);
+  box-shadow: 0 0 250px 200px rgba(255, 255, 255, 1);
 }

@@ -13,8 +13,10 @@ const joystickHandle = document.getElementById("joystick-handle")!
 const playerElements: { [key: string]: HTMLDivElement } = {}
 const propElements: { [key: string]: HTMLDivElement } = {}
 const bulletElements: { [key: string]: HTMLDivElement } = {}
+const smokeElements: { [key: string]: HTMLDivElement } = {}
 const wallElements: HTMLDivElement[] = []
 let uiInitialized = false
+
 
 let game: GameState | undefined
 let yourPlayerId: PlayerId | undefined
@@ -82,6 +84,15 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     gameContainer.appendChild(propElement)
     propElements[propId] = propElement
   }
+
+  gameContainer.addEventListener("click", (e) => {
+    if (!game || !yourPlayerId || !game.players[yourPlayerId].isHunter) return
+
+    const rect = gameContainer.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    Rune.actions.shoot({ x, y })
+  })
 
   let joystickActive = false
   let joystickStartX = 0
@@ -163,6 +174,48 @@ Rune.initClient({
 
     const yourPlayer = players[yourPlayerId!]
 
+    // Manage Change Prop Button
+    let changePropButton = document.getElementById("change-prop-button") as HTMLButtonElement
+    if (!changePropButton) {
+      changePropButton = document.createElement("button")
+      changePropButton.id = "change-prop-button"
+      document.body.appendChild(changePropButton)
+      changePropButton.onclick = () => {
+        if (yourPlayerId && !players[yourPlayerId].isHunter && !players[yourPlayerId].isCaught && players[yourPlayerId].propChangesRemaining > 0) {
+          Rune.actions.changeProp()
+        }
+      }
+    }
+
+    if (yourPlayer.isHunter || yourPlayer.isCaught) {
+      changePropButton.style.display = "none"
+    } else {
+      changePropButton.style.display = "block"
+      changePropButton.innerText = `Change Prop (${yourPlayer.propChangesRemaining})`
+      changePropButton.disabled = yourPlayer.propChangesRemaining <= 0
+    }
+
+    // Manage Smoke Bomb Button
+    let smokeBombButton = document.getElementById("smoke-bomb-button") as HTMLButtonElement
+    if (!smokeBombButton) {
+      smokeBombButton = document.createElement("button")
+      smokeBombButton.id = "smoke-bomb-button"
+      document.body.appendChild(smokeBombButton)
+      smokeBombButton.onclick = () => {
+        if (yourPlayerId && !players[yourPlayerId].isHunter && !players[yourPlayerId].isCaught && players[yourPlayerId].smokeBombsRemaining > 0) {
+          Rune.actions.useSmokeBomb()
+        }
+      }
+    }
+
+    if (yourPlayer.isHunter || yourPlayer.isCaught) {
+      smokeBombButton.style.display = "none"
+    } else {
+      smokeBombButton.style.display = "block"
+      smokeBombButton.innerText = `Smoke Bomb (${yourPlayer.smokeBombsRemaining})`
+      smokeBombButton.disabled = yourPlayer.smokeBombsRemaining <= 0
+    }
+
     if (yourPlayer.isCaught) {
       joystickContainer.style.display = "none"
       spectatorUI.style.display = "flex"
@@ -211,11 +264,8 @@ Rune.initClient({
           playerElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
         }
 
-        playerElement.onclick = () => {
-          if (yourPlayerId && players[yourPlayerId].isHunter) {
-            Rune.actions.shoot(playerId)
-          }
-        }
+        
+        playerElement.onclick = null
       }
 
       playerElement.style.left = `${player.position.x - 25}px`
@@ -278,6 +328,43 @@ Rune.initClient({
       if (!newGame.bullets[bulletId]) {
         bulletElements[bulletId].remove()
         delete bulletElements[bulletId]
+      }
+    }
+
+    // Render smokes
+    for (const smokeId in newGame.smokes) {
+      const smoke = newGame.smokes[smokeId]
+      let smokeElement = smokeElements[smokeId]
+
+      if (!smokeElement) {
+        smokeElement = document.createElement("div")
+        smokeElement.classList.add("smoke-bomb")
+        gameContainer.appendChild(smokeElement)
+        smokeElements[smokeId] = smokeElement
+      }
+
+      smokeElement.style.left = `${smoke.position.x - smoke.radius}px`
+      smokeElement.style.top = `${smoke.position.y - smoke.radius}px`
+      smokeElement.style.width = `${smoke.radius * 2}px`
+      smokeElement.style.height = `${smoke.radius * 2}px`
+
+      const yourPlayer = players[yourPlayerId!]
+      if (yourPlayer.isHunter) {
+        smokeElement.className = "smoke-bomb smoke-bomb-other"
+      } else {
+        if (smoke.ownerId === yourPlayerId) {
+          smokeElement.className = "smoke-bomb smoke-bomb-owner"
+        } else {
+          smokeElement.className = "smoke-bomb smoke-bomb-other"
+        }
+      }
+    }
+
+    // Remove old smokes
+    for (const smokeId in smokeElements) {
+      if (!newGame.smokes[smokeId]) {
+        smokeElements[smokeId].remove()
+        delete smokeElements[smokeId]
       }
     }
 

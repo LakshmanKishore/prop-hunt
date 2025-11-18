@@ -9,6 +9,8 @@ export interface GameState {
       propType?: string
       isCaught: boolean
       health: number
+      propChangesRemaining: number
+      smokeBombsRemaining: number
     }
   }
 
@@ -17,6 +19,16 @@ export interface GameState {
       position: { x: number; y: number }
       velocity: { x: number; y: number }
       id: string
+    }
+  }
+
+  smokes: {
+    [key: string]: {
+      position: { x: number; y: number }
+      radius: number
+      duration: number
+      spawnTime: number
+      ownerId: string
     }
   }
 
@@ -40,7 +52,9 @@ export interface GameState {
 
 type GameActions = {
   move: (joystick: { x: number; y: number }) => void
-  shoot: (targetId: string) => void
+  shoot: (position: { x: number; y: number }) => void
+  changeProp: () => void
+  useSmokeBomb: () => void
 }
 
 declare global {
@@ -165,6 +179,7 @@ Rune.initLogic({
     const initialState: GameState = {
       players: {},
       bullets: {},
+      smokes: {},
       props: {},
       gameOver: false,
       remainingTime: 300,
@@ -206,6 +221,8 @@ Rune.initLogic({
           : propTypes[Math.floor(Math.random() * propTypes.length)],
         isCaught: false,
         health: isHunter ? 0 : 100,
+        propChangesRemaining: isHunter ? 0 : 3,
+        smokeBombsRemaining: isHunter ? 0 : 5,
       }
     })
 
@@ -259,22 +276,17 @@ Rune.initLogic({
         player.velocity.y = 0
       }
     },
-    shoot: (targetId, { game, playerId }) => {
+    shoot: (position, { game, playerId }) => {
       if (game.gameOver) return
       const hunter = game.players[playerId]
       if (!hunter.isHunter) {
         throw Rune.invalidAction()
       }
 
-      const targetPlayer = game.players[targetId]
-      if (!targetPlayer || targetPlayer.isHunter || targetPlayer.isCaught) {
-        return
-      }
-
       const bulletSpeed = 20
       const angle = Math.atan2(
-        targetPlayer.position.y - hunter.position.y,
-        targetPlayer.position.x - hunter.position.x
+        position.y - hunter.position.y,
+        position.x - hunter.position.x
       )
       const bulletId = Rune.gameTime().toString() + playerId
 
@@ -287,6 +299,46 @@ Rune.initLogic({
         id: bulletId,
       }
     },
+    changeProp: (_, { game, playerId }) => {
+      const player = game.players[playerId]
+      if (
+        !player ||
+        player.isHunter ||
+        player.isCaught ||
+        player.propChangesRemaining <= 0
+      ) {
+        return
+      }
+
+      player.propChangesRemaining--
+      player.health = 100
+
+      const newPropTypes = propTypes.filter((p) => p !== player.propType)
+      player.propType =
+        newPropTypes[Math.floor(Math.random() * newPropTypes.length)]
+    },
+    useSmokeBomb: (_, { game, playerId }) => {
+      const player = game.players[playerId]
+      if (
+        !player ||
+        player.isHunter ||
+        player.isCaught ||
+        player.smokeBombsRemaining <= 0
+      ) {
+        return
+      }
+
+      player.smokeBombsRemaining--
+
+      const smokeBombId = Rune.gameTime().toString() + playerId
+      game.smokes[smokeBombId] = {
+        position: { ...player.position },
+        radius: 200,
+        duration: 10000, // seconds
+        spawnTime: Rune.gameTime(),
+        ownerId: playerId,
+      }
+    }
   },
   update: ({ game }) => {
     if (game.gameOver) {
@@ -383,6 +435,21 @@ Rune.initLogic({
           }
         }
 
+        // Check for collision with props
+        for (const propId in game.props) {
+          const prop = game.props[propId]
+          const distance = Math.sqrt(
+            Math.pow(bullet.position.x - prop.position.x, 2) +
+              Math.pow(bullet.position.y - prop.position.y, 2)
+          )
+
+          if (distance < PLAYER_RADIUS) {
+            delete game.props[propId]
+            delete game.bullets[bulletId]
+            break
+          }
+        }
+
         // Remove bullets that go off-screen
         if (
           bullet.position.x < 0 ||
@@ -391,6 +458,14 @@ Rune.initLogic({
           bullet.position.y > ARENA_HEIGHT
         ) {
           delete game.bullets[bulletId]
+        }
+      }
+
+      // Update smokes
+      for (const smokeId in game.smokes) {
+        const smoke = game.smokes[smokeId]
+        if (Rune.gameTime() - smoke.spawnTime > smoke.duration) {
+          delete game.smokes[smokeId]
         }
       }
     }

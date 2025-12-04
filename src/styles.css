@@ -211,18 +211,18 @@ body {
 
 #spectator-ui {
   position: fixed;
-  top: 0;
+  top: 20px;
   left: 0;
   width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: transparent;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   z-index: 200;
   color: white;
   font-size: 24px;
+  pointer-events: none;
 }
 
 .spectator-player-icon {
@@ -232,6 +232,7 @@ body {
   margin: 10px;
   cursor: pointer;
   border: 2px solid white;
+  pointer-events: auto;
 }
 
 .spectator-player-icon img {
@@ -261,4 +262,20 @@ body {
 .smoke-bomb-other {
   background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 70%);
   box-shadow: 0 0 250px 200px rgba(255, 255, 255, 1);
+}
+
+.prop-hit {
+  outline: 3px solid red;
+  animation: flash 0.5s infinite;
+}
+
+@keyframes flash {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.player-hit {
+  outline: 3px solid red;
+  animation: flash 0.5s infinite;
 }

@@ -106,6 +106,10 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     joystickStartX = touch.clientX
     joystickStartY = touch.clientY
 
+    joystickContainer.style.display = "flex"
+    joystickContainer.style.left = `${joystickStartX - 50}px`
+    joystickContainer.style.top = `${joystickStartY - 50}px`
+
     if (moveInterval) clearInterval(moveInterval)
     moveInterval = setInterval(() => {
       Rune.actions.move({ ...currentJoystick })
@@ -135,8 +139,11 @@ function initUI(playerIds: PlayerId[], game: GameState) {
   window.addEventListener("touchend", () => {
     joystickActive = false
     if (moveInterval) clearInterval(moveInterval)
+
+    joystickContainer.style.display = "none"
     joystickHandle.style.left = "50px"
     joystickHandle.style.top = "50px"
+
     currentJoystick.x = 0
     currentJoystick.y = 0
     Rune.actions.move({ x: 0, y: 0 })
@@ -277,6 +284,15 @@ Rune.initClient({
         playerElement.style.opacity = "1"
       }
 
+      if (
+        player.lastHitTime &&
+        Rune.gameTime() - player.lastHitTime < 500
+      ) {
+        playerElement.classList.add("player-hit")
+      } else {
+        playerElement.classList.remove("player-hit")
+      }
+
       if (playerId === yourPlayerId && !player.isHunter) {
         let healthBar = playerElement.querySelector(
           ".health-bar"
@@ -304,6 +320,9 @@ Rune.initClient({
         propElement.style.left = `${prop.position.x}px`
         propElement.style.top = `${prop.position.y}px`
         propElement.style.transform = `rotate(${prop.rotation}deg)`
+        if (prop.isHit) {
+          propElement.classList.add("prop-hit")
+        }
       }
     }
 

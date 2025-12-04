@@ -11,6 +11,7 @@ export interface GameState {
       health: number
       propChangesRemaining: number
       smokeBombsRemaining: number
+      lastHitTime?: number
     }
   }
 
@@ -37,7 +38,7 @@ export interface GameState {
       position: { x: number; y: number }
 
       isTaken: boolean
-
+      isHit?: boolean
       propType: string
       rotation: number
     }
@@ -397,6 +398,18 @@ Rune.initLogic({
         bullet.position.x += bullet.velocity.x
         bullet.position.y += bullet.velocity.y
 
+        if (
+          isCollidingWithWall(
+            bullet.position.x,
+            bullet.position.y,
+            5,
+            game.mapLayout
+          )
+        ) {
+          delete game.bullets[bulletId]
+          continue
+        }
+
         // Check for collision with players
         for (const playerId in game.players) {
           const player = game.players[playerId]
@@ -408,7 +421,8 @@ Rune.initLogic({
           )
 
           if (distance < PLAYER_RADIUS) {
-            player.health -= 25 // Bullet damage
+            player.health -= 10 // Bullet damage
+            player.lastHitTime = Rune.gameTime()
             if (player.health <= 0) {
               player.isCaught = true
 
@@ -435,6 +449,8 @@ Rune.initLogic({
           }
         }
 
+        if (!game.bullets[bulletId]) continue
+
         // Check for collision with props
         for (const propId in game.props) {
           const prop = game.props[propId]
@@ -444,11 +460,12 @@ Rune.initLogic({
           )
 
           if (distance < PLAYER_RADIUS) {
-            delete game.props[propId]
             delete game.bullets[bulletId]
             break
           }
         }
+
+        if (!game.bullets[bulletId]) continue
 
         // Remove bullets that go off-screen
         if (

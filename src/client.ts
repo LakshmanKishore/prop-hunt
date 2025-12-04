@@ -17,7 +17,6 @@ const smokeElements: { [key: string]: HTMLDivElement } = {}
 const wallElements: HTMLDivElement[] = []
 let uiInitialized = false
 
-
 let game: GameState | undefined
 let yourPlayerId: PlayerId | undefined
 let spectatedPlayerId: PlayerId | undefined
@@ -91,7 +90,20 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     const rect = gameContainer.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    Rune.actions.shoot({ x, y })
+
+    const player = game.players[yourPlayerId!]
+    const angle = Math.atan2(y - player.position.y, x - player.position.x)
+
+    const bulletSpawnOffset = 40
+    const bulletSpawnX = player.position.x + bulletSpawnOffset * Math.cos(angle)
+    const bulletSpawnY = player.position.y + bulletSpawnOffset * Math.sin(angle)
+
+    Rune.actions.shoot({
+      x,
+      y,
+      bulletSpawnX,
+      bulletSpawnY,
+    })
   })
 
   let joystickActive = false
@@ -182,13 +194,20 @@ Rune.initClient({
     const yourPlayer = players[yourPlayerId!]
 
     // Manage Change Prop Button
-    let changePropButton = document.getElementById("change-prop-button") as HTMLButtonElement
+    let changePropButton = document.getElementById(
+      "change-prop-button"
+    ) as HTMLButtonElement
     if (!changePropButton) {
       changePropButton = document.createElement("button")
       changePropButton.id = "change-prop-button"
       document.body.appendChild(changePropButton)
       changePropButton.onclick = () => {
-        if (yourPlayerId && !players[yourPlayerId].isHunter && !players[yourPlayerId].isCaught && players[yourPlayerId].propChangesRemaining > 0) {
+        if (
+          yourPlayerId &&
+          !players[yourPlayerId].isHunter &&
+          !players[yourPlayerId].isCaught &&
+          players[yourPlayerId].propChangesRemaining > 0
+        ) {
           Rune.actions.changeProp()
         }
       }
@@ -203,13 +222,20 @@ Rune.initClient({
     }
 
     // Manage Smoke Bomb Button
-    let smokeBombButton = document.getElementById("smoke-bomb-button") as HTMLButtonElement
+    let smokeBombButton = document.getElementById(
+      "smoke-bomb-button"
+    ) as HTMLButtonElement
     if (!smokeBombButton) {
       smokeBombButton = document.createElement("button")
       smokeBombButton.id = "smoke-bomb-button"
       document.body.appendChild(smokeBombButton)
       smokeBombButton.onclick = () => {
-        if (yourPlayerId && !players[yourPlayerId].isHunter && !players[yourPlayerId].isCaught && players[yourPlayerId].smokeBombsRemaining > 0) {
+        if (
+          yourPlayerId &&
+          !players[yourPlayerId].isHunter &&
+          !players[yourPlayerId].isCaught &&
+          players[yourPlayerId].smokeBombsRemaining > 0
+        ) {
           Rune.actions.useSmokeBomb()
         }
       }
@@ -220,7 +246,33 @@ Rune.initClient({
     } else {
       smokeBombButton.style.display = "block"
       smokeBombButton.innerText = `Smoke Bomb (${yourPlayer.smokeBombsRemaining})`
-      smokeBombButton.disabled = yourPlayer.smokeBombsRemaining <= 0
+      smokeBombButton.disabled = yourPlayer.propChangesRemaining <= 0
+    }
+
+    // Manage Rotate Prop Button
+    let rotatePropButton = document.getElementById(
+      "rotate-prop-button"
+    ) as HTMLButtonElement
+    if (!rotatePropButton) {
+      rotatePropButton = document.createElement("button")
+      rotatePropButton.id = "rotate-prop-button"
+      document.body.appendChild(rotatePropButton)
+      rotatePropButton.onclick = () => {
+        if (
+          yourPlayerId &&
+          !players[yourPlayerId].isHunter &&
+          !players[yourPlayerId].isCaught
+        ) {
+          Rune.actions.rotateProp()
+        }
+      }
+    }
+
+    if (yourPlayer.isHunter || yourPlayer.isCaught) {
+      rotatePropButton.style.display = "none"
+    } else {
+      rotatePropButton.style.display = "block"
+      rotatePropButton.innerText = "Rotate Prop"
     }
 
     if (yourPlayer.isCaught) {
@@ -253,7 +305,7 @@ Rune.initClient({
       if (player.isHunter) {
         playerElement.innerHTML = `<img src="${
           Rune.getPlayerInfo(playerId).avatarUrl
-        }" />`
+        }" /><img src="/src/assets/gun.svg" class="gun" />`
         playerElement.style.backgroundColor = "red"
         playerElement.style.width = "50px"
         playerElement.style.height = "50px"
@@ -271,12 +323,12 @@ Rune.initClient({
           playerElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
         }
 
-        
         playerElement.onclick = null
       }
 
       playerElement.style.left = `${player.position.x - 25}px`
       playerElement.style.top = `${player.position.y - 25}px`
+      playerElement.style.transform = `rotate(${player.rotation || 0}deg)`
 
       if (player.isCaught) {
         playerElement.style.opacity = "0.5"
@@ -284,10 +336,13 @@ Rune.initClient({
         playerElement.style.opacity = "1"
       }
 
-      if (
-        player.lastHitTime &&
-        Rune.gameTime() - player.lastHitTime < 500
-      ) {
+      const gunElement = playerElement.querySelector(".gun") as HTMLImageElement
+      if (gunElement) {
+        const rotation = player.rotation || 0
+        gunElement.style.transform = `rotate(${rotation}deg)`
+      }
+
+      if (player.lastHitTime && Rune.gameTime() - player.lastHitTime < 500) {
         playerElement.classList.add("player-hit")
       } else {
         playerElement.classList.remove("player-hit")
@@ -369,13 +424,17 @@ Rune.initClient({
 
       const yourPlayer = players[yourPlayerId!]
       if (yourPlayer.isHunter) {
-        smokeElement.className = "smoke-bomb smoke-bomb-other"
+        smokeElement.style.zIndex = "220"
       } else {
-        if (smoke.ownerId === yourPlayerId) {
-          smokeElement.className = "smoke-bomb smoke-bomb-owner"
-        } else {
-          smokeElement.className = "smoke-bomb smoke-bomb-other"
+        for (const playerId in players) {
+          const player = players[playerId]
+          if (player.isHunter) {
+            playerElements[playerId].style.zIndex = "210"
+          } else {
+            playerElements[playerId].style.zIndex = "250"
+          }
         }
+        smokeElement.style.zIndex = "220"
       }
     }
 

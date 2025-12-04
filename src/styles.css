@@ -60,6 +60,16 @@ body {
   border-radius: 50%;
 }
 
+.gun {
+  position: absolute;
+  width: 60px;
+  height: 30px;
+  top: 25%;
+  left: 50%;
+  transform-origin: 25% 50%;
+}
+
+
 .prop {
   position: absolute;
   background-size: cover;
@@ -115,7 +125,8 @@ body {
 }
 
 #change-prop-button,
-#smoke-bomb-button {
+#smoke-bomb-button,
+#rotate-prop-button {
   position: fixed;
   right: 20px;
   padding: 10px 20px;
@@ -133,6 +144,10 @@ body {
 
 #smoke-bomb-button {
   bottom: 170px;
+}
+
+#rotate-prop-button {
+  bottom: 220px;
 }
 
 #change-prop-button:disabled,
@@ -256,10 +271,6 @@ body {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  z-index: 200;
-}
-
-.smoke-bomb-other {
   background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 70%);
   box-shadow: 0 0 250px 200px rgba(255, 255, 255, 1);
 }

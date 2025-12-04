@@ -12,6 +12,7 @@ export interface GameState {
       propChangesRemaining: number
       smokeBombsRemaining: number
       lastHitTime?: number
+      rotation?: number
     }
   }
 
@@ -53,9 +54,16 @@ export interface GameState {
 
 type GameActions = {
   move: (joystick: { x: number; y: number }) => void
-  shoot: (position: { x: number; y: number }) => void
+  shoot: (position: {
+    x: number
+    y: number
+    bulletSpawnX: number
+    bulletSpawnY: number
+  }) => void
   changeProp: () => void
   useSmokeBomb: () => void
+  rotateProp: () => void
+  setHunterRotation: (rotation: number) => void
 }
 
 declare global {
@@ -224,6 +232,7 @@ Rune.initLogic({
         health: isHunter ? 0 : 100,
         propChangesRemaining: isHunter ? 0 : 3,
         smokeBombsRemaining: isHunter ? 0 : 5,
+        rotation: Math.random() * 360,
       }
     })
 
@@ -292,7 +301,7 @@ Rune.initLogic({
       const bulletId = Rune.gameTime().toString() + playerId
 
       game.bullets[bulletId] = {
-        position: { ...hunter.position },
+        position: { x: position.bulletSpawnX, y: position.bulletSpawnY },
         velocity: {
           x: Math.cos(angle) * bulletSpeed,
           y: Math.sin(angle) * bulletSpeed,
@@ -339,7 +348,25 @@ Rune.initLogic({
         spawnTime: Rune.gameTime(),
         ownerId: playerId,
       }
-    }
+    },
+    rotateProp: (_, { game, playerId }) => {
+      const player = game.players[playerId]
+      if (!player || player.isHunter || player.isCaught) {
+        return
+      }
+
+      player.rotation = (player.rotation || 0) + 45
+      if (player.rotation >= 360) {
+        player.rotation = 0
+      }
+    },
+    setHunterRotation: (rotation, { game, playerId }) => {
+      const player = game.players[playerId]
+      if (!player || !player.isHunter) {
+        return
+      }
+      player.rotation = rotation
+    },
   },
   update: ({ game }) => {
     if (game.gameOver) {

@@ -84,7 +84,7 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     propElements[propId] = propElement
   }
 
-  gameContainer.addEventListener("click", (e) => {
+  gameContainer.addEventListener("mousemove", (e) => {
     if (!game || !yourPlayerId || !game.players[yourPlayerId].isHunter) return
 
     const rect = gameContainer.getBoundingClientRect()
@@ -94,16 +94,18 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     const player = game.players[yourPlayerId!]
     const angle = Math.atan2(y - player.position.y, x - player.position.x)
 
-    const bulletSpawnOffset = 40
-    const bulletSpawnX = player.position.x + bulletSpawnOffset * Math.cos(angle)
-    const bulletSpawnY = player.position.y + bulletSpawnOffset * Math.sin(angle)
+    Rune.actions.setHunterRotation({ angle: angle * (180 / Math.PI) })
+  })
 
-    Rune.actions.shoot({
-      x,
-      y,
-      bulletSpawnX,
-      bulletSpawnY,
-    })
+  gameContainer.addEventListener("click", (e) => {
+    if (joystickActive) return
+    if (!game || !yourPlayerId || !game.players[yourPlayerId].isHunter) return
+
+    const rect = gameContainer.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    Rune.actions.shoot({ x, y })
   })
 
   let joystickActive = false
@@ -127,6 +129,7 @@ function initUI(playerIds: PlayerId[], game: GameState) {
       Rune.actions.move({ ...currentJoystick })
     }, 50)
   })
+
 
   window.addEventListener("touchmove", (e) => {
     if (!joystickActive) return
@@ -336,10 +339,11 @@ Rune.initClient({
         playerElement.style.opacity = "1"
       }
 
-      const gunElement = playerElement.querySelector(".gun") as HTMLImageElement
+      const gunElement = playerElement.querySelector(
+        ".gun"
+      ) as HTMLImageElement
       if (gunElement) {
-        const rotation = player.rotation || 0
-        gunElement.style.transform = `rotate(${rotation}deg)`
+        gunElement.style.transform = ``
       }
 
       if (player.lastHitTime && Rune.gameTime() - player.lastHitTime < 500) {

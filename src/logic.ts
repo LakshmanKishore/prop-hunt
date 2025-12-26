@@ -54,16 +54,11 @@ export interface GameState {
 
 type GameActions = {
   move: (joystick: { x: number; y: number }) => void
-  shoot: (position: {
-    x: number
-    y: number
-    bulletSpawnX: number
-    bulletSpawnY: number
-  }) => void
+  shoot: (position: { x: number; y: number }) => void
   changeProp: () => void
   useSmokeBomb: () => void
   rotateProp: () => void
-  setHunterRotation: (rotation: number) => void
+  setHunterRotation: (rotation: { angle: number }) => void
 }
 
 declare global {
@@ -300,8 +295,14 @@ Rune.initLogic({
       )
       const bulletId = Rune.gameTime().toString() + playerId
 
+      const bulletSpawnOffset = 40
+      const bulletSpawnX =
+        hunter.position.x + bulletSpawnOffset * Math.cos(angle)
+      const bulletSpawnY =
+        hunter.position.y + bulletSpawnOffset * Math.sin(angle)
+
       game.bullets[bulletId] = {
-        position: { x: position.bulletSpawnX, y: position.bulletSpawnY },
+        position: { x: bulletSpawnX, y: bulletSpawnY },
         velocity: {
           x: Math.cos(angle) * bulletSpeed,
           y: Math.sin(angle) * bulletSpeed,
@@ -360,12 +361,12 @@ Rune.initLogic({
         player.rotation = 0
       }
     },
-    setHunterRotation: (rotation, { game, playerId }) => {
+    setHunterRotation: ({ angle }, { game, playerId }) => {
       const player = game.players[playerId]
       if (!player || !player.isHunter) {
         return
       }
-      player.rotation = rotation
+      player.rotation = angle
     },
   },
   update: ({ game }) => {
@@ -437,6 +438,8 @@ Rune.initLogic({
           continue
         }
 
+        if (!game.bullets[bulletId]) continue
+
         // Check for collision with players
         for (const playerId in game.players) {
           const player = game.players[playerId]
@@ -487,10 +490,15 @@ Rune.initLogic({
           )
 
           if (distance < PLAYER_RADIUS) {
+            prop.isHit = true
+            setTimeout(() => {
+              prop.isHit = false
+            }, 500)
             delete game.bullets[bulletId]
             break
           }
         }
+
 
         if (!game.bullets[bulletId]) continue
 

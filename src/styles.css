@@ -240,6 +240,130 @@ body {
   padding-left: 20px;
 }
 
+/* Lobby UI */
+#lobby-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-color);
+  z-index: 500;
+  color: var(--ui-text);
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+#lobby-title {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 30px;
+  color: var(--accent-color);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+#lobby-player-list {
+  width: 90%;
+  max-width: 500px;
+  background-color: var(--ui-bg);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 30px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.lobby-player-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 10px;
+}
+
+.lobby-player-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.lobby-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  margin-right: 15px;
+  border: 2px solid #555;
+  transition: all 0.3s ease;
+  filter: grayscale(100%) opacity(0.5);
+}
+
+.lobby-avatar.ready {
+  filter: grayscale(0%) opacity(1);
+  border-color: var(--success-color);
+  box-shadow: 0 0 10px var(--success-color);
+}
+
+.lobby-player-info {
+  flex-grow: 1;
+}
+
+.lobby-player-name {
+  font-weight: bold;
+  font-size: 16px;
+  display: block;
+}
+
+.lobby-player-team {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 4px;
+}
+
+.lobby-controls {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.lobby-btn {
+  padding: 15px 30px;
+  border-radius: 30px;
+  border: none;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.2s;
+  text-transform: uppercase;
+}
+
+.lobby-btn:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background-color: var(--accent-color);
+  color: #131314;
+  box-shadow: 0 4px 10px rgba(138, 180, 248, 0.3);
+}
+
+.btn-success {
+  background-color: var(--success-color);
+  color: #131314;
+  box-shadow: 0 4px 10px rgba(129, 201, 149, 0.3);
+}
+
+.btn-secondary {
+  background-color: rgba(255,255,255,0.1);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
 .close-modal-btn {
   margin-top: 20px;
   padding: 10px 20px;

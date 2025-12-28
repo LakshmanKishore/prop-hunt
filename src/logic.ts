@@ -1,11 +1,17 @@
 import type { RuneClient } from "rune-sdk"
 
 export interface GameState {
+  phase: "LOBBY" | "PLAYING" | "GAME_OVER"
   players: {
     [key: string]: {
+      // Lobby fields
+      team: "HUNTER" | "PROP"
+      isReady: boolean
+      
+      // Game fields
       position: { x: number; y: number }
       velocity: { x: number; y: number }
-      isHunter: boolean
+      isHunter: boolean // Kept for compatibility, updated on start
       propType?: string
       isCaught: boolean
       health: number
@@ -61,6 +67,8 @@ type GameActions = {
   useSmokeBomb: () => void
   rotateProp: () => void
   setHunterRotation: (rotation: { angle: number }) => void
+  setTeam: (team: "HUNTER" | "PROP") => void
+  toggleReady: () => void
 }
 
 declare global {
@@ -207,21 +215,8 @@ function shuffleArray<T>(array: T[]): T[] {
   return newArray
 }
 
-Rune.initLogic({
-  minPlayers: 2,
-  maxPlayers: 6,
-  setup: (allPlayerIds) => {
-    const { walls: mapLayout, rooms } = generateMapLayout()
-    const initialState: GameState = {
-      players: {},
-      bullets: {},
-      smokes: {},
-      props: {},
-      gameOver: false,
-      remainingTime: 300,
-      mapLayout,
-      roomLayout: rooms,
-    }
+function spawnGameEntities(game: GameState) {
+    const mapLayout = game.mapLayout
 
     // Get valid spawn points for players
     const validPlayerSpawnPoints: { x: number; y: number }[] = []
@@ -241,27 +236,25 @@ Rune.initLogic({
       }
     }
 
-    // Shuffle validPlayerSpawnPoints to assign random positions without mutation
     const shuffledSpawnPoints = shuffleArray(validPlayerSpawnPoints)
+    const playerIds = Object.keys(game.players)
 
-    // Initialize players
-    allPlayerIds.forEach((playerId, index) => {
-      const isHunter = index === 0
-      const position = shuffledSpawnPoints[index]
+    // Assign positions and roles based on team choice
+    playerIds.forEach((playerId, index) => {
+      const player = game.players[playerId]
+      const position = shuffledSpawnPoints[index] || { x: 100, y: 100 }
 
-      initialState.players[playerId] = {
-        position,
-        velocity: { x: 0, y: 0 },
-        isHunter,
-        propType: isHunter
+      player.position = position
+      player.velocity = { x: 0, y: 0 }
+      player.isHunter = player.team === "HUNTER"
+      player.propType = player.isHunter
           ? undefined
-          : propTypes[Math.floor(Math.random() * propTypes.length)],
-        isCaught: false,
-        health: isHunter ? 0 : 100,
-        propChangesRemaining: isHunter ? 0 : 3,
-        smokeBombsRemaining: isHunter ? 0 : 5,
-        rotation: Math.random() * 360,
-      }
+          : propTypes[Math.floor(Math.random() * propTypes.length)]
+      player.isCaught = false
+      player.health = player.isHunter ? 0 : 100
+      player.propChangesRemaining = player.isHunter ? 0 : 3
+      player.smokeBombsRemaining = player.isHunter ? 0 : 5
+      player.rotation = Math.random() * 360
     })
 
     // Initialize props
@@ -276,26 +269,98 @@ Rune.initLogic({
     }
     const validSpawnPoints = shuffleArray(tempValidSpawnPoints)
 
-    // Spawn a lot more props!
     const PROP_COUNT = 100
+    game.props = {} // Clear existing props
     for (let i = 0; i < PROP_COUNT; i++) {
       if (i >= validSpawnPoints.length) break
 
       const { x, y } = validSpawnPoints[i]
 
-      initialState.props[`prop${i}`] = {
+      game.props[`prop${i}`] = {
         position: { x, y },
         isTaken: false,
         propType: propTypes[Math.floor(Math.random() * propTypes.length)],
         rotation: Math.random() * 360,
       }
     }
+}
+
+Rune.initLogic({
+  minPlayers: 1,
+  maxPlayers: 6,
+  setup: (allPlayerIds) => {
+    const { walls: mapLayout, rooms } = generateMapLayout()
+    const initialState: GameState = {
+      phase: "LOBBY",
+      players: {},
+      bullets: {},
+      smokes: {},
+      props: {},
+      gameOver: false,
+      remainingTime: 300,
+      mapLayout,
+      roomLayout: rooms,
+    }
+
+    for (const playerId of allPlayerIds) {
+        initialState.players[playerId] = {
+            team: "PROP", // Default team
+            isReady: false,
+            position: { x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+            isHunter: false,
+            isCaught: false,
+            health: 100,
+            propChangesRemaining: 3,
+            smokeBombsRemaining: 5
+        }
+    }
 
     return initialState
   },
+  events: {
+    playerJoined: (playerId, { game }) => {
+        game.players[playerId] = {
+            team: "PROP",
+            isReady: false,
+            position: { x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+            isHunter: false,
+            // If game is already playing, join as caught (spectator)
+            isCaught: game.phase === "PLAYING",
+            health: 100,
+            propChangesRemaining: 3,
+            smokeBombsRemaining: 5
+        }
+    },
+    playerLeft: (playerId, { game }) => {
+        delete game.players[playerId]
+    },
+  },
   actions: {
+    setTeam: (team, { game, playerId }) => {
+        if (game.phase !== "LOBBY") return
+        if (game.players[playerId]) {
+            game.players[playerId].team = team
+            game.players[playerId].isReady = false // Reset ready on change
+        }
+    },
+    toggleReady: (_, { game, playerId }) => {
+        if (game.phase !== "LOBBY") return
+        if (game.players[playerId]) {
+            game.players[playerId].isReady = !game.players[playerId].isReady
+        }
+
+        // Check if all players are ready
+        const allPlayers = Object.values(game.players)
+        if (allPlayers.length > 0 && allPlayers.every(p => p.isReady)) {
+            // Start Game
+            game.phase = "PLAYING"
+            spawnGameEntities(game)
+        }
+    },
     move: ({ x, y }, { game, playerId }) => {
-      if (game.gameOver) return
+      if (game.phase !== "PLAYING" || game.gameOver) return
       const player = game.players[playerId]
       if (!player || player.isCaught) {
         return
@@ -312,7 +377,7 @@ Rune.initLogic({
       }
     },
     shoot: (position, { game, playerId }) => {
-      if (game.gameOver) return
+      if (game.phase !== "PLAYING" || game.gameOver) return
       const hunter = game.players[playerId]
       if (!hunter.isHunter) {
         throw Rune.invalidAction()
@@ -342,6 +407,7 @@ Rune.initLogic({
       }
     },
     changeProp: (_, { game, playerId }) => {
+      if (game.phase !== "PLAYING") return
       const player = game.players[playerId]
       if (
         !player ||
@@ -360,6 +426,7 @@ Rune.initLogic({
         newPropTypes[Math.floor(Math.random() * newPropTypes.length)]
     },
     useSmokeBomb: (_, { game, playerId }) => {
+      if (game.phase !== "PLAYING") return
       const player = game.players[playerId]
       if (
         !player ||
@@ -382,6 +449,7 @@ Rune.initLogic({
       }
     },
     rotateProp: (_, { game, playerId }) => {
+      if (game.phase !== "PLAYING") return
       const player = game.players[playerId]
       if (!player || player.isHunter || player.isCaught) {
         return
@@ -393,6 +461,7 @@ Rune.initLogic({
       }
     },
     setHunterRotation: ({ angle }, { game, playerId }) => {
+      if (game.phase !== "PLAYING") return
       const player = game.players[playerId]
       if (!player || !player.isHunter) {
         return
@@ -401,7 +470,7 @@ Rune.initLogic({
     },
   },
   update: ({ game }) => {
-    if (game.gameOver) {
+    if (game.phase !== "PLAYING" || game.gameOver) {
       return
     }
 

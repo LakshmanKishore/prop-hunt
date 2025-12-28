@@ -130,7 +130,6 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     }, 50)
   })
 
-
   window.addEventListener("touchmove", (e) => {
     if (!joystickActive) return
 
@@ -308,22 +307,30 @@ Rune.initClient({
       if (player.isHunter) {
         playerElement.innerHTML = `<img src="${
           Rune.getPlayerInfo(playerId).avatarUrl
-        }" /><img src="/src/assets/gun.svg" class="gun" />`
+        }" /><img
+            src="/src/assets/gun.svg"
+            class="gun"
+        />`
         playerElement.style.backgroundColor = "red"
         playerElement.style.width = "50px"
         playerElement.style.height = "50px"
+        playerElement.style.border = ""
       } else {
         playerElement.innerHTML = ""
         playerElement.style.backgroundColor = "transparent"
-        playerElement.classList.remove("player")
+        playerElement.style.border = "none"
+        playerElement.classList.add("player")
         playerElement.classList.add("prop")
         const spriteInfo = getSpriteInfo(player.propType!)
         if (spriteInfo) {
-          playerElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
-          playerElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
-          playerElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
-          playerElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
-          playerElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
+          const propElement = document.createElement("div")
+          propElement.classList.add("prop")
+          propElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
+          propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
+          propElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
+          propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
+          propElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
+          playerElement.appendChild(propElement)
         }
 
         playerElement.onclick = null
@@ -339,17 +346,21 @@ Rune.initClient({
         playerElement.style.opacity = "1"
       }
 
-      const gunElement = playerElement.querySelector(
-        ".gun"
-      ) as HTMLImageElement
+      const gunElement = playerElement.querySelector(".gun") as HTMLImageElement
       if (gunElement) {
         gunElement.style.transform = ``
       }
 
-      if (player.lastHitTime && Rune.gameTime() - player.lastHitTime < 500) {
-        playerElement.classList.add("player-hit")
-      } else {
-        playerElement.classList.remove("player-hit")
+      const propElement = playerElement.querySelector(".prop") as HTMLDivElement
+      if (
+        player.lastHitTime &&
+        Rune.gameTime() - player.lastHitTime < 500 &&
+        !player.isHunter &&
+        propElement
+      ) {
+        propElement.classList.add("player-hit")
+      } else if (propElement) {
+        propElement.classList.remove("player-hit")
       }
 
       if (playerId === yourPlayerId && !player.isHunter) {
@@ -381,6 +392,8 @@ Rune.initClient({
         propElement.style.transform = `rotate(${prop.rotation}deg)`
         if (prop.isHit) {
           propElement.classList.add("prop-hit")
+        } else {
+          propElement.classList.remove("prop-hit")
         }
       }
     }

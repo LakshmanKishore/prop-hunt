@@ -42,6 +42,7 @@ export interface GameState {
       isHit?: boolean
       propType: string
       rotation: number
+      lastHitTime?: number
     }
   }
 
@@ -482,6 +483,7 @@ Rune.initLogic({
         if (!game.bullets[bulletId]) continue
 
         // Check for collision with props
+        /*
         for (const propId in game.props) {
           const prop = game.props[propId]
           const distance = Math.sqrt(
@@ -491,14 +493,12 @@ Rune.initLogic({
 
           if (distance < PLAYER_RADIUS) {
             prop.isHit = true
-            setTimeout(() => {
-              prop.isHit = false
-            }, 500)
+            prop.lastHitTime = Rune.gameTime()
             delete game.bullets[bulletId]
             break
           }
         }
-
+        */
 
         if (!game.bullets[bulletId]) continue
 
@@ -510,6 +510,16 @@ Rune.initLogic({
           bullet.position.y > ARENA_HEIGHT
         ) {
           delete game.bullets[bulletId]
+        }
+      }
+
+      // Update props that have been hit
+      for (const propId in game.props) {
+        const prop = game.props[propId]
+        if (prop.isHit && prop.lastHitTime) {
+          if (Rune.gameTime() - prop.lastHitTime > 500) {
+            prop.isHit = false
+          }
         }
       }
 

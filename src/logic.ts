@@ -323,6 +323,7 @@ Rune.initLogic({
         position.y - hunter.position.y,
         position.x - hunter.position.x
       )
+      hunter.rotation = angle * (180 / Math.PI)
       const bulletId = Rune.gameTime().toString() + playerId
 
       const bulletSpawnOffset = 40

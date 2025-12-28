@@ -120,21 +120,11 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     Rune.actions.setHunterRotation({ angle: angle * (180 / Math.PI) })
   })
 
-  gameContainer.addEventListener("click", (e) => {
-    if (joystickActive) return
-    if (!game || !yourPlayerId || !game.players[yourPlayerId].isHunter) return
-
-    const rect = gameContainer.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-
-    Rune.actions.shoot({ x, y })
-  })
-
   let joystickActive = false
   let joystickTouchId: number | null = null
   let joystickStartX = 0
   let joystickStartY = 0
+  let joystickStartTime = 0
   let moveInterval: number | undefined
   const currentJoystick = { x: 0, y: 0 }
 
@@ -142,19 +132,31 @@ function initUI(playerIds: PlayerId[], game: GameState) {
   joystickContainer.style.display = "flex"
 
   window.addEventListener("touchstart", (e) => {
+    // Check if player can shoot (is Hunter)
+    const canShoot = game && yourPlayerId && game.players[yourPlayerId]?.isHunter
+
     for (const touch of e.changedTouches) {
-      if (joystickActive) continue
-      
-      // Ignore touches on buttons or specific UI elements if needed
+      // Ignore touches on buttons
       if ((touch.target as HTMLElement).closest("button")) continue
 
+      if (joystickActive) {
+        // If joystick is ALREADY active, this is a secondary touch -> SHOOT
+        if (canShoot) {
+            const rect = gameContainer.getBoundingClientRect()
+            Rune.actions.shoot({
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            })
+        }
+        continue
+      }
+      
+      // If joystick is NOT active, this is the first touch -> Start Joystick / Potential Tap
       joystickActive = true
       joystickTouchId = touch.identifier
       joystickStartX = touch.clientX
       joystickStartY = touch.clientY
-
-      // We do NOT move the joystick container. It stays fixed at bottom-left.
-      // We purely use these coordinates as the "center" for this interaction.
+      joystickStartTime = Date.now()
 
       if (moveInterval) clearInterval(moveInterval)
       moveInterval = setInterval(() => {
@@ -189,6 +191,7 @@ function initUI(playerIds: PlayerId[], game: GameState) {
   window.addEventListener("touchend", (e) => {
     for (const touch of e.changedTouches) {
       if (touch.identifier === joystickTouchId) {
+        // Joystick released
         joystickActive = false
         joystickTouchId = null
         if (moveInterval) clearInterval(moveInterval)
@@ -200,6 +203,20 @@ function initUI(playerIds: PlayerId[], game: GameState) {
         currentJoystick.x = 0
         currentJoystick.y = 0
         Rune.actions.move({ x: 0, y: 0 })
+
+        // Check for Tap to Shoot (Short duration, small movement)
+        const duration = Date.now() - joystickStartTime
+        const dist = Math.sqrt(Math.pow(touch.clientX - joystickStartX, 2) + Math.pow(touch.clientY - joystickStartY, 2))
+        
+        const canShoot = game && yourPlayerId && game.players[yourPlayerId]?.isHunter
+
+        if (canShoot && duration < 200 && dist < 10) {
+            const rect = gameContainer.getBoundingClientRect()
+            Rune.actions.shoot({
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            })
+        }
       }
     }
   })
@@ -428,7 +445,7 @@ Rune.initClient({
       if (player.isHunter) {
         playerElement.innerHTML = `<img src="${
           Rune.getPlayerInfo(playerId).avatarUrl
-        }" /><img
+        }" class="avatar" /><img
             src="/src/assets/gun.svg"
             class="gun"
         />`

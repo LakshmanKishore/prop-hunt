@@ -17,6 +17,16 @@ const smokeElements: { [key: string]: HTMLDivElement } = {}
 const wallElements: HTMLDivElement[] = []
 let uiInitialized = false
 
+// Define a nice palette (Gemini/Modern Dark Mode inspired)
+const roomColors = [
+  "#1e1f20", // Dark Grey (Base)
+  "#252627", // Slightly Lighter
+  "#1c222e", // Dark Blue Tint
+  "#1f2521", // Dark Green Tint
+  "#261e22", // Dark Red/Purple Tint
+  "#202022", // Neutral
+]
+
 let game: GameState | undefined
 let yourPlayerId: PlayerId | undefined
 let spectatedPlayerId: PlayerId | undefined
@@ -53,6 +63,19 @@ function initUI(playerIds: PlayerId[], game: GameState) {
 
   gameContainer.style.width = `2000px`
   gameContainer.style.height = `2000px`
+
+  if (game.roomLayout) {
+    for (const room of game.roomLayout) {
+      const roomElement = document.createElement("div")
+      roomElement.classList.add("room")
+      roomElement.style.left = `${room.x}px`
+      roomElement.style.top = `${room.y}px`
+      roomElement.style.width = `${room.width}px`
+      roomElement.style.height = `${room.height}px`
+      roomElement.style.backgroundColor = roomColors[room.colorIndex % roomColors.length]
+      gameContainer.appendChild(roomElement)
+    }
+  }
 
   for (const wall of game.mapLayout) {
     const wallElement = document.createElement("div")
@@ -109,58 +132,76 @@ function initUI(playerIds: PlayerId[], game: GameState) {
   })
 
   let joystickActive = false
+  let joystickTouchId: number | null = null
   let joystickStartX = 0
   let joystickStartY = 0
   let moveInterval: number | undefined
   const currentJoystick = { x: 0, y: 0 }
 
+  // Ensure joystick is visible initially
+  joystickContainer.style.display = "flex"
+
   window.addEventListener("touchstart", (e) => {
-    joystickActive = true
-    const touch = e.touches[0]
-    joystickStartX = touch.clientX
-    joystickStartY = touch.clientY
+    for (const touch of e.changedTouches) {
+      if (joystickActive) continue
+      
+      // Ignore touches on buttons or specific UI elements if needed
+      if ((touch.target as HTMLElement).closest("button")) continue
 
-    joystickContainer.style.display = "flex"
-    joystickContainer.style.left = `${joystickStartX - 50}px`
-    joystickContainer.style.top = `${joystickStartY - 50}px`
+      joystickActive = true
+      joystickTouchId = touch.identifier
+      joystickStartX = touch.clientX
+      joystickStartY = touch.clientY
 
-    if (moveInterval) clearInterval(moveInterval)
-    moveInterval = setInterval(() => {
-      Rune.actions.move({ ...currentJoystick })
-    }, 50)
+      // We do NOT move the joystick container. It stays fixed at bottom-left.
+      // We purely use these coordinates as the "center" for this interaction.
+
+      if (moveInterval) clearInterval(moveInterval)
+      moveInterval = setInterval(() => {
+        Rune.actions.move({ ...currentJoystick })
+      }, 50)
+    }
   })
 
   window.addEventListener("touchmove", (e) => {
     if (!joystickActive) return
 
-    const touch = e.touches[0]
-    const deltaX = touch.clientX - joystickStartX
-    const deltaY = touch.clientY - joystickStartY
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === joystickTouchId) {
+        const deltaX = touch.clientX - joystickStartX
+        const deltaY = touch.clientY - joystickStartY
 
-    const distance = Math.min(50, Math.sqrt(deltaX * deltaX + deltaY * deltaY))
-    const angle = Math.atan2(deltaY, deltaX)
+        const distance = Math.min(50, Math.sqrt(deltaX * deltaX + deltaY * deltaY))
+        const angle = Math.atan2(deltaY, deltaX)
 
-    const handleX = distance * Math.cos(angle)
-    const handleY = distance * Math.sin(angle)
+        const handleX = distance * Math.cos(angle)
+        const handleY = distance * Math.sin(angle)
 
-    joystickHandle.style.left = `${50 + handleX}px`
-    joystickHandle.style.top = `${50 + handleY}px`
+        joystickHandle.style.left = `${50 + handleX}px`
+        joystickHandle.style.top = `${50 + handleY}px`
 
-    currentJoystick.x = handleX
-    currentJoystick.y = handleY
+        currentJoystick.x = handleX
+        currentJoystick.y = handleY
+      }
+    }
   })
 
-  window.addEventListener("touchend", () => {
-    joystickActive = false
-    if (moveInterval) clearInterval(moveInterval)
+  window.addEventListener("touchend", (e) => {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === joystickTouchId) {
+        joystickActive = false
+        joystickTouchId = null
+        if (moveInterval) clearInterval(moveInterval)
 
-    joystickContainer.style.display = "none"
-    joystickHandle.style.left = "50px"
-    joystickHandle.style.top = "50px"
+        // Reset handle position
+        joystickHandle.style.left = "50px"
+        joystickHandle.style.top = "50px"
 
-    currentJoystick.x = 0
-    currentJoystick.y = 0
-    Rune.actions.move({ x: 0, y: 0 })
+        currentJoystick.x = 0
+        currentJoystick.y = 0
+        Rune.actions.move({ x: 0, y: 0 })
+      }
+    }
   })
 }
 
@@ -168,6 +209,38 @@ const joystickContainer = document.getElementById("joystick-container")!
 const spectatorUI = document.createElement("div")
 spectatorUI.id = "spectator-ui"
 document.body.appendChild(spectatorUI)
+
+// Help Button & Modal
+const helpButton = document.createElement("div")
+helpButton.id = "help-button"
+helpButton.innerHTML = "?"
+document.body.appendChild(helpButton)
+
+const modalOverlay = document.createElement("div")
+modalOverlay.classList.add("modal-overlay")
+modalOverlay.innerHTML = `
+  <div class="modal-content">
+    <h2>How to Play</h2>
+    <p><strong>Hunters:</strong> Find and shoot the disguised players! You have infinite ammo but shooting props reveals your position.</p>
+    <p><strong>Props:</strong> Hide! You look like a random object. Use your tools to survive.</p>
+    <ul>
+      <li><strong>Rotate:</strong> Adjust your angle to blend in.</li>
+      <li><strong>Change Prop:</strong> Morph into a new object (Limited uses).</li>
+      <li><strong>Smoke Bomb:</strong> Create a cloud to escape (Limited uses).</li>
+    </ul>
+    <button class="close-modal-btn">Got it!</button>
+  </div>
+`
+document.body.appendChild(modalOverlay)
+
+helpButton.onclick = () => {
+  modalOverlay.style.display = "flex"
+}
+
+modalOverlay.querySelector(".close-modal-btn")!.addEventListener("click", () => {
+  modalOverlay.style.display = "none"
+})
+
 
 Rune.initClient({
   onChange: ({ game: newGame, yourPlayerId: newYourPlayerId }) => {
@@ -195,6 +268,23 @@ Rune.initClient({
 
     const yourPlayer = players[yourPlayerId!]
 
+    // Manage Z-Indices for Smoke Logic
+    // If Hunter: Hunter (215) > Props (10) [Looks like static]
+    // If Prop: Props (250) > Smoke (220) > Hunter (210) [X-ray]
+    const hunterZ = yourPlayer.isHunter ? "215" : "210"
+    const propZ = yourPlayer.isHunter ? "10" : "250"
+
+    for (const playerId in players) {
+      const el = playerElements[playerId]
+      if (el) {
+        if (players[playerId].isHunter) {
+          el.style.zIndex = hunterZ
+        } else {
+          el.style.zIndex = propZ
+        }
+      }
+    }
+
     // Manage Change Prop Button
     let changePropButton = document.getElementById(
       "change-prop-button"
@@ -202,6 +292,9 @@ Rune.initClient({
     if (!changePropButton) {
       changePropButton = document.createElement("button")
       changePropButton.id = "change-prop-button"
+      changePropButton.classList.add("action-btn")
+      // Icon: Shuffle / Refresh
+      changePropButton.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>`
       document.body.appendChild(changePropButton)
       changePropButton.onclick = () => {
         if (
@@ -218,9 +311,20 @@ Rune.initClient({
     if (yourPlayer.isHunter || yourPlayer.isCaught) {
       changePropButton.style.display = "none"
     } else {
-      changePropButton.style.display = "block"
-      changePropButton.innerText = `Change Prop (${yourPlayer.propChangesRemaining})`
+      changePropButton.style.display = "flex"
+      // changePropButton.innerText = `Change Prop (${yourPlayer.propChangesRemaining})` // Removed text
       changePropButton.disabled = yourPlayer.propChangesRemaining <= 0
+      if (yourPlayer.propChangesRemaining <= 0) changePropButton.style.opacity = "0.5"
+      else changePropButton.style.opacity = "1"
+
+      // Count Badge for Change Prop
+      let countBadge = changePropButton.querySelector('.count-badge') as HTMLSpanElement
+      if (!countBadge) {
+        countBadge = document.createElement('span')
+        countBadge.classList.add('count-badge')
+        changePropButton.appendChild(countBadge)
+      }
+      countBadge.innerText = yourPlayer.propChangesRemaining.toString()
     }
 
     // Manage Smoke Bomb Button
@@ -230,6 +334,9 @@ Rune.initClient({
     if (!smokeBombButton) {
       smokeBombButton = document.createElement("button")
       smokeBombButton.id = "smoke-bomb-button"
+      smokeBombButton.classList.add("action-btn")
+      // Icon: Cloud / Smoke
+      smokeBombButton.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>`
       document.body.appendChild(smokeBombButton)
       smokeBombButton.onclick = () => {
         if (
@@ -246,9 +353,20 @@ Rune.initClient({
     if (yourPlayer.isHunter || yourPlayer.isCaught) {
       smokeBombButton.style.display = "none"
     } else {
-      smokeBombButton.style.display = "block"
-      smokeBombButton.innerText = `Smoke Bomb (${yourPlayer.smokeBombsRemaining})`
+      smokeBombButton.style.display = "flex"
+      // smokeBombButton.innerText = `Smoke Bomb (${yourPlayer.smokeBombsRemaining})` // Removed text
       smokeBombButton.disabled = yourPlayer.propChangesRemaining <= 0
+       if (yourPlayer.smokeBombsRemaining <= 0) smokeBombButton.style.opacity = "0.5"
+      else smokeBombButton.style.opacity = "1"
+
+      // Count Badge for Smoke Bomb
+      let countBadge = smokeBombButton.querySelector('.count-badge') as HTMLSpanElement
+      if (!countBadge) {
+        countBadge = document.createElement('span')
+        countBadge.classList.add('count-badge')
+        smokeBombButton.appendChild(countBadge)
+      }
+      countBadge.innerText = yourPlayer.smokeBombsRemaining.toString()
     }
 
     // Manage Rotate Prop Button
@@ -258,6 +376,9 @@ Rune.initClient({
     if (!rotatePropButton) {
       rotatePropButton = document.createElement("button")
       rotatePropButton.id = "rotate-prop-button"
+      rotatePropButton.classList.add("action-btn")
+      // Icon: Rotate Right
+      rotatePropButton.innerHTML = `<svg viewBox="0 0 24 24"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>`
       document.body.appendChild(rotatePropButton)
       rotatePropButton.onclick = () => {
         if (
@@ -273,8 +394,8 @@ Rune.initClient({
     if (yourPlayer.isHunter || yourPlayer.isCaught) {
       rotatePropButton.style.display = "none"
     } else {
-      rotatePropButton.style.display = "block"
-      rotatePropButton.innerText = "Rotate Prop"
+      rotatePropButton.style.display = "flex"
+      // rotatePropButton.innerText = "Rotate Prop" // Removed text
     }
 
     if (yourPlayer.isCaught) {
@@ -439,20 +560,8 @@ Rune.initClient({
       smokeElement.style.width = `${smoke.radius * 2}px`
       smokeElement.style.height = `${smoke.radius * 2}px`
 
-      const yourPlayer = players[yourPlayerId!]
-      if (yourPlayer.isHunter) {
-        smokeElement.style.zIndex = "220"
-      } else {
-        for (const playerId in players) {
-          const player = players[playerId]
-          if (player.isHunter) {
-            playerElements[playerId].style.zIndex = "210"
-          } else {
-            playerElements[playerId].style.zIndex = "250"
-          }
-        }
-        smokeElement.style.zIndex = "220"
-      }
+      // Smoke Z-index is always 220. Player visibility relative to smoke is handled in the global player loop.
+      smokeElement.style.zIndex = "220"
     }
 
     // Remove old smokes
@@ -465,6 +574,21 @@ Rune.initClient({
 
     // Minimap rendering
     minimap.innerHTML = ""
+    
+    if (game.roomLayout) {
+      for (const room of game.roomLayout) {
+        const minimapRoom = document.createElement("div")
+        minimapRoom.style.position = "absolute"
+        minimapRoom.style.left = `${(room.x / 2000) * 150}px`
+        minimapRoom.style.top = `${(room.y / 2000) * 150}px`
+        minimapRoom.style.width = `${(room.width / 2000) * 150}px`
+        minimapRoom.style.height = `${(room.height / 2000) * 150}px`
+        minimapRoom.style.backgroundColor = roomColors[room.colorIndex % roomColors.length]
+        minimapRoom.style.opacity = "0.5" // Slightly transparent on minimap
+        minimap.appendChild(minimapRoom)
+      }
+    }
+
     for (const wall of mapLayout) {
       const minimapWall = document.createElement("div")
       minimapWall.classList.add("minimap-wall")

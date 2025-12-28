@@ -51,6 +51,7 @@ export interface GameState {
   remainingTime: number
 
   mapLayout: { x: number; y: number; width: number; height: number }[]
+  roomLayout: { x: number; y: number; width: number; height: number; colorIndex: number }[]
 }
 
 type GameActions = {
@@ -70,38 +71,60 @@ import { propTypes } from "./spriteManager.ts"
 const ARENA_WIDTH = 2000
 const ARENA_HEIGHT = 2000
 const PLAYER_RADIUS = 25
-const WALL_THICKNESS = 10
+const WALL_THICKNESS = 20 // Made thicker for better visuals
 
-const MIN_ROOM_SIZE = 400
-const MAX_ROOMS = 8
-const DOOR_SIZE = 120
+const MIN_ROOM_SIZE = 500 // Slightly larger rooms
+const MAX_ROOMS = 12
+const DOOR_SIZE = 160
 
 function generateMapLayout(): {
-  x: number
-  y: number
-  width: number
-  height: number
-}[] {
+  walls: { x: number; y: number; width: number; height: number }[]
+  rooms: {
+    x: number
+    y: number
+    width: number
+    height: number
+    colorIndex: number
+  }[]
+} {
   const walls: { x: number; y: number; width: number; height: number }[] = []
+  const rooms: {
+    x: number
+    y: number
+    width: number
+    height: number
+    colorIndex: number
+  }[] = []
   let roomCount = 0
 
   function divide(x: number, y: number, width: number, height: number) {
+    // Base case: If max rooms reached or space is too small, this is a room
     if (
       roomCount >= MAX_ROOMS ||
       (width < MIN_ROOM_SIZE * 2 && height < MIN_ROOM_SIZE * 2)
     ) {
+      rooms.push({
+        x,
+        y,
+        width,
+        height,
+        colorIndex: Math.floor(Math.random() * 6), // 0-5 for 6 variants
+      })
       return
     }
 
     roomCount++
 
-    const horizontal = width < height
+    // Decide split direction (favor splitting the longer dimension)
+    const horizontal = height > width ? true : width > height ? false : Math.random() < 0.5
 
     if (horizontal) {
+        // Split horizontally (line across Y axis)
+        // Ensure split is somewhat central to avoid tiny slivers
       const divideAt =
-        Math.floor(Math.random() * (height / 3)) + Math.floor(height / 3)
+        Math.floor(Math.random() * (height * 0.4)) + Math.floor(height * 0.3)
       const doorAt =
-        Math.floor(Math.random() * (width - DOOR_SIZE)) + DOOR_SIZE / 2
+        Math.floor(Math.random() * (width - DOOR_SIZE - 100)) + 50
 
       walls.push({ x, y: y + divideAt, width: doorAt, height: WALL_THICKNESS })
       walls.push({
@@ -119,10 +142,11 @@ function generateMapLayout(): {
         height - divideAt - WALL_THICKNESS
       )
     } else {
+        // Split vertically (line across X axis)
       const divideAt =
-        Math.floor(Math.random() * (width / 3)) + Math.floor(width / 3)
+        Math.floor(Math.random() * (width * 0.4)) + Math.floor(width * 0.3)
       const doorAt =
-        Math.floor(Math.random() * (height - DOOR_SIZE)) + DOOR_SIZE / 2
+        Math.floor(Math.random() * (height - DOOR_SIZE - 100)) + 50
 
       walls.push({ x: x + divideAt, y, width: WALL_THICKNESS, height: doorAt })
       walls.push({
@@ -142,9 +166,16 @@ function generateMapLayout(): {
     }
   }
 
-  divide(0, 0, ARENA_WIDTH, ARENA_HEIGHT)
+  // Add outer boundary walls
+  walls.push({ x: 0, y: 0, width: ARENA_WIDTH, height: WALL_THICKNESS }) // Top
+  walls.push({ x: 0, y: ARENA_HEIGHT - WALL_THICKNESS, width: ARENA_WIDTH, height: WALL_THICKNESS }) // Bottom
+  walls.push({ x: 0, y: 0, width: WALL_THICKNESS, height: ARENA_HEIGHT }) // Left
+  walls.push({ x: ARENA_WIDTH - WALL_THICKNESS, y: 0, width: WALL_THICKNESS, height: ARENA_HEIGHT }) // Right
 
-  return walls
+
+  divide(WALL_THICKNESS, WALL_THICKNESS, ARENA_WIDTH - 2 * WALL_THICKNESS, ARENA_HEIGHT - 2 * WALL_THICKNESS)
+
+  return { walls, rooms }
 }
 
 function isCollidingWithWall(
@@ -180,7 +211,7 @@ Rune.initLogic({
   minPlayers: 2,
   maxPlayers: 6,
   setup: (allPlayerIds) => {
-    const mapLayout = generateMapLayout()
+    const { walls: mapLayout, rooms } = generateMapLayout()
     const initialState: GameState = {
       players: {},
       bullets: {},
@@ -188,7 +219,8 @@ Rune.initLogic({
       props: {},
       gameOver: false,
       remainingTime: 300,
-      mapLayout: mapLayout,
+      mapLayout,
+      roomLayout: rooms,
     }
 
     // Get valid spawn points for players
@@ -234,22 +266,19 @@ Rune.initLogic({
 
     // Initialize props
     const tempValidSpawnPoints: { x: number; y: number }[] = []
-    for (let x = 0; x < ARENA_WIDTH; x += 20) {
-      for (let y = 0; y < ARENA_HEIGHT; y += 20) {
-        if (
-          !isCollidingWithWall(x, y, 25, mapLayout) &&
-          (isCollidingWithWall(x - 20, y, 25, mapLayout) ||
-            isCollidingWithWall(x + 20, y, 25, mapLayout) ||
-            isCollidingWithWall(x, y - 20, 25, mapLayout) ||
-            isCollidingWithWall(x, y + 20, 25, mapLayout))
-        ) {
-          tempValidSpawnPoints.push({ x, y })
+    // Scan the map for valid non-wall positions
+    for (let x = 50; x < ARENA_WIDTH - 50; x += 40) {
+      for (let y = 50; y < ARENA_HEIGHT - 50; y += 40) {
+        if (!isCollidingWithWall(x, y, 30, mapLayout)) {
+             tempValidSpawnPoints.push({ x, y })
         }
       }
     }
     const validSpawnPoints = shuffleArray(tempValidSpawnPoints)
 
-    for (let i = 0; i < 20; i++) {
+    // Spawn a lot more props!
+    const PROP_COUNT = 100
+    for (let i = 0; i < PROP_COUNT; i++) {
       if (i >= validSpawnPoints.length) break
 
       const { x, y } = validSpawnPoints[i]
@@ -345,7 +374,7 @@ Rune.initLogic({
       const smokeBombId = Rune.gameTime().toString() + playerId
       game.smokes[smokeBombId] = {
         position: { ...player.position },
-        radius: 200,
+        radius: 600,
         duration: 10000, // seconds
         spawnTime: Rune.gameTime(),
         ownerId: playerId,

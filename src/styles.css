@@ -1,63 +1,75 @@
-.health-bar {
-  position: absolute;
-  bottom: -10px;
-  left: 0;
-  width: 100%;
-  height: 5px;
-  background-color: #ccc;
-  border-radius: 2.5px;
-  overflow: hidden;
+:root {
+  --bg-color: #131314;
+  --wall-color: #2d2e30;
+  --wall-border: #3c4043;
+  --ui-bg: rgba(30, 31, 32, 0.85); /* Slightly more opaque */
+  --ui-text: #e3e3e3;
+  --accent-color: #8ab4f8; 
+  --danger-color: #f28b82; 
+  --success-color: #81c995; 
 }
-
-.health-bar-inner {
-  height: 100%;
-  background-color: #f00;
-  transition: width 0.2s ease-in-out;
-}
-
-.bullet {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background-color: yellow;
-  border-radius: 50%;
-  z-index: 20;
-}
-
-/* Existing styles */
 
 body {
   margin: 0;
   overflow: hidden;
-  font-family: "Press Start 2P", cursive;
-  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--ui-text);
 }
 
 #game-container {
   position: absolute;
-  background-color: #222;
+  background-color: var(--bg-color);
   transform-origin: top left;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.room {
+  position: absolute;
+  z-index: 0;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+  border-radius: 4px; 
+}
+
+.wall {
+  position: absolute;
+  background-color: var(--wall-color);
+  box-shadow: 0 0 10px rgba(0,0,0,0.8);
+  border: 1px solid var(--wall-border);
+  z-index: 10;
+  box-sizing: border-box;
 }
 
 .player {
   position: absolute;
   width: 50px;
   height: 50px;
-  background-color: blue;
+  background-color: var(--accent-color);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
   box-sizing: border-box;
-  border: 2px solid #fff;
   z-index: 210;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+}
+
+/* Remove all identifying markers for players disguised as props */
+.player.prop {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .player img {
   width: 40px;
   height: 40px;
   border-radius: 50%;
+  border: 2px solid white;
 }
 
 .gun {
@@ -67,27 +79,27 @@ body {
   top: 25%;
   left: 50%;
   transform-origin: 25% 50%;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
-
 
 .prop {
   position: absolute;
   background-size: cover;
   z-index: 5;
+  filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
 }
 
-.wall {
-  position: absolute;
-  background-color: #555;
-}
+/* UI Elements */
 
 #joystick-container {
   position: fixed;
-  bottom: 20px;
-  left: 20px;
-  width: 100px;
-  height: 100px;
-  background-color: rgba(255, 255, 255, 0.3);
+  bottom: 40px;
+  left: 40px;
+  width: 120px;
+  height: 120px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -99,131 +111,239 @@ body {
   position: absolute;
   width: 50px;
   height: 50px;
-  background-color: rgba(255, 255, 255, 0.7);
+  background-color: rgba(255, 255, 255, 0.8);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  left: 50px;
-  top: 50px;
+  left: 60px;
+  top: 60px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
 #shoot-button {
+  display: none;
+}
+
+/* Icons / Action Buttons */
+.action-btn {
   position: fixed;
-  bottom: 20px;
   right: 20px;
-  width: 80px;
-  height: 80px;
-  background-color: red;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  border: none;
-  color: white;
-  font-size: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background-color: var(--ui-bg);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text);
+  cursor: pointer;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
-  cursor: pointer;
+  transition: transform 0.1s, background-color 0.2s;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  padding: 0; /* Reset padding for icon centering */
 }
 
-#change-prop-button,
-#smoke-bomb-button,
-#rotate-prop-button {
-  position: fixed;
-  right: 20px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  background-color: #4caf50;
-  color: white;
-  cursor: pointer;
-  z-index: 100;
+.action-btn svg {
+  width: 32px;
+  height: 32px;
+  fill: currentColor;
 }
 
-#change-prop-button {
-  bottom: 120px;
+.action-btn:active {
+  transform: scale(0.95);
+  background-color: rgba(60, 64, 67, 0.9);
 }
 
-#smoke-bomb-button {
-  bottom: 170px;
-}
-
-#rotate-prop-button {
-  bottom: 220px;
-}
-
-#change-prop-button:disabled,
-#smoke-bomb-button:disabled {
-  background-color: #888;
+.action-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
+.count-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: var(--danger-color);
+  color: #131314;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  border: 2px solid var(--bg-color);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
 
+#change-prop-button { bottom: 120px; }
+#smoke-bomb-button { bottom: 190px; }
+#rotate-prop-button { bottom: 260px; }
+
+/* Help Button */
+#help-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--ui-bg);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+}
+
+/* Modal */
+.modal-overlay {
+  display: none; /* Hidden by default */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(3px);
+}
+
+.modal-content {
+  background-color: #202124;
+  padding: 30px;
+  border-radius: 16px;
+  max-width: 80%;
+  width: 400px;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  text-align: left;
+  line-height: 1.6;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  color: var(--accent-color);
+}
+
+.modal-content ul {
+  padding-left: 20px;
+}
+
+.close-modal-btn {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: var(--accent-color);
+  color: #202124;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+}
+
+/* HUD Timers */
 #game-timer {
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 24px;
+  font-weight: 700;
   z-index: 100;
+  background-color: var(--ui-bg);
+  padding: 8px 16px;
+  border-radius: 20px;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 #ping-timer {
   position: fixed;
-  top: 60px;
+  top: 70px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 18px;
+  font-size: 14px;
   z-index: 100;
+  color: #aaa;
 }
 
+/* Minimap */
 #minimap {
   position: fixed;
-  top: 20px;
+  top: 80px; /* Moved down slightly to avoid help button overlap */
   right: 20px;
   width: 150px;
   height: 150px;
-  background-color: rgba(0, 0, 0, 0.5);
-  border: 2px solid white;
+  background-color: var(--ui-bg);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
   z-index: 100;
   overflow: hidden;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
 .minimap-wall {
   position: absolute;
-  background-color: #777;
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .minimap-player {
   position: absolute;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   background-color: white;
   border-radius: 50%;
+  box-shadow: 0 0 4px white;
 }
 
+/* Player List */
 #playersSection {
   position: fixed;
   top: 20px;
   left: 20px;
   list-style: none;
-  padding: 0;
+  padding: 10px;
   margin: 0;
   z-index: 100;
+  background-color: var(--ui-bg);
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 #playersSection li {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
-  font-size: 14px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#playersSection li:last-child {
+  margin-bottom: 0;
 }
 
 #playersSection img {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  margin-right: 10px;
+  margin-right: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
 }
 
+/* Spectator */
 #spectator-ui {
   position: fixed;
   top: 20px;
@@ -241,13 +361,19 @@ body {
 }
 
 .spectator-player-icon {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  margin: 10px;
+  margin: 8px;
   cursor: pointer;
-  border: 2px solid white;
+  border: 2px solid rgba(255,255,255,0.5);
   pointer-events: auto;
+  transition: transform 0.2s;
+}
+
+.spectator-player-icon:hover {
+  transform: scale(1.1);
+  border-color: white;
 }
 
 .spectator-player-icon img {
@@ -256,27 +382,64 @@ body {
   border-radius: 50%;
 }
 
+/* Game Over */
 #game-over-message {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 48px;
-  color: gold;
-  text-shadow: 3px 3px 5px black;
+  font-weight: 800;
+  color: white;
+  text-align: center;
   z-index: 300;
+  text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.health-bar {
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255,255,255,0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.health-bar-inner {
+  height: 100%;
+  background-color: var(--danger-color);
+  transition: width 0.2s ease-in-out;
+}
+
+.bullet {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #ffeb3b; 
+  border-radius: 50%;
+  z-index: 20;
+  box-shadow: 0 0 8px #ffeb3b;
 }
 
 .smoke-bomb {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 70%);
-  box-shadow: 0 0 250px 200px rgba(255, 255, 255, 1);
+  /* Extreme white fog as requested */
+  background: radial-gradient(circle, rgba(255, 255, 255, 1) 40%, rgba(255, 255, 255, 0.95) 70%, rgba(255, 255, 255, 0.8) 85%, rgba(255, 255, 255, 0) 100%);
 }
 
 .prop-hit {
-  outline: 3px solid red;
+  outline: 2px solid var(--danger-color);
+  box-shadow: 0 0 15px var(--danger-color);
+  animation: flash 0.5s infinite;
+}
+
+.player-hit {
+  outline: 2px solid var(--danger-color);
+  box-shadow: 0 0 15px var(--danger-color);
   animation: flash 0.5s infinite;
 }
 
@@ -284,9 +447,4 @@ body {
   0% { opacity: 1; }
   50% { opacity: 0.5; }
   100% { opacity: 1; }
-}
-
-.player-hit {
-  outline: 3px solid red;
-  animation: flash 0.5s infinite;
 }

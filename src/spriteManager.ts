@@ -1,16 +1,5 @@
 import propCoordinates from "./assets/prop-coordinates.json"
 
-const allPropTypes = Object.entries(propCoordinates).flatMap(
-  ([spriteSheet, { sprites }]) =>
-    sprites.map((_, index) => `${spriteSheet.replace(".png", "")}_${index}`)
-)
-
-if (allPropTypes.length === 0) {
-  alert(
-    "Prop coordinates loaded, but no prop types were generated. Check prop-coordinates.json."
-  )
-}
-
 interface SheetData {
   minX: number
   minY: number
@@ -53,5 +42,3 @@ export function getSpriteInfo(propType: string) {
     sheetHeight,
   }
 }
-
-export const propTypes = allPropTypes

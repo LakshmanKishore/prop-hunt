@@ -19,12 +19,12 @@ let uiInitialized = false
 
 // Define a nice palette (Gemini/Modern Dark Mode inspired)
 const roomColors = [
-  "#1e1f20", // Dark Grey (Base)
-  "#252627", // Slightly Lighter
-  "#1c222e", // Dark Blue Tint
-  "#1f2521", // Dark Green Tint
-  "#261e22", // Dark Red/Purple Tint
-  "#202022", // Neutral
+  "#f5f5dc", // Beige (Base)
+  "#f0f8ff", // AliceBlue (Light neutral)
+  "#fdf5e6", // OldLace (Creamy neutral)
+  "#fffaf0", // FloralWhite (Warm white)
+  "#faebd7", // AntiqueWhite (Off-white)
+  "#ffe4c4", // Bisque (Warm orange tint)
 ]
 
 let game: GameState | undefined
@@ -72,7 +72,8 @@ function initUI(playerIds: PlayerId[], game: GameState) {
       roomElement.style.top = `${room.y}px`
       roomElement.style.width = `${room.width}px`
       roomElement.style.height = `${room.height}px`
-      roomElement.style.backgroundColor = roomColors[room.colorIndex % roomColors.length]
+      roomElement.style.backgroundColor =
+        roomColors[room.colorIndex % roomColors.length]
       gameContainer.appendChild(roomElement)
     }
   }
@@ -94,14 +95,16 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     const propElement = document.createElement("div")
     propElement.classList.add("prop")
     console.log("prop.propType", prop.propType)
-    const spriteInfo = getSpriteInfo(prop.propType)
-    console.log("spriteInfo", spriteInfo)
-    if (spriteInfo) {
-      propElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
-      propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
-      propElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
-      propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
-      propElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
+    if (prop.propType) {
+      const spriteInfo = getSpriteInfo(prop.propType)
+      console.log("spriteInfo", spriteInfo)
+      if (spriteInfo) {
+        propElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
+        propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
+        propElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
+        propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
+        propElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
+      }
     }
     gameContainer.appendChild(propElement)
     propElements[propId] = propElement
@@ -133,7 +136,8 @@ function initUI(playerIds: PlayerId[], game: GameState) {
 
   window.addEventListener("touchstart", (e) => {
     // Check if player can shoot (is Hunter)
-    const canShoot = game && yourPlayerId && game.players[yourPlayerId]?.isHunter
+    const canShoot =
+      game && yourPlayerId && game.players[yourPlayerId]?.isHunter
 
     for (const touch of e.changedTouches) {
       // Ignore touches on buttons
@@ -142,15 +146,15 @@ function initUI(playerIds: PlayerId[], game: GameState) {
       if (joystickActive) {
         // If joystick is ALREADY active, this is a secondary touch -> SHOOT
         if (canShoot) {
-            const rect = gameContainer.getBoundingClientRect()
-            Rune.actions.shoot({
-                x: touch.clientX - rect.left,
-                y: touch.clientY - rect.top
-            })
+          const rect = gameContainer.getBoundingClientRect()
+          Rune.actions.shoot({
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top,
+          })
         }
         continue
       }
-      
+
       // If joystick is NOT active, this is the first touch -> Start Joystick / Potential Tap
       joystickActive = true
       joystickTouchId = touch.identifier
@@ -173,7 +177,10 @@ function initUI(playerIds: PlayerId[], game: GameState) {
         const deltaX = touch.clientX - joystickStartX
         const deltaY = touch.clientY - joystickStartY
 
-        const distance = Math.min(50, Math.sqrt(deltaX * deltaX + deltaY * deltaY))
+        const distance = Math.min(
+          50,
+          Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+        )
         const angle = Math.atan2(deltaY, deltaX)
 
         const handleX = distance * Math.cos(angle)
@@ -206,16 +213,20 @@ function initUI(playerIds: PlayerId[], game: GameState) {
 
         // Check for Tap to Shoot (Short duration, small movement)
         const duration = Date.now() - joystickStartTime
-        const dist = Math.sqrt(Math.pow(touch.clientX - joystickStartX, 2) + Math.pow(touch.clientY - joystickStartY, 2))
-        
-        const canShoot = game && yourPlayerId && game.players[yourPlayerId]?.isHunter
+        const dist = Math.sqrt(
+          Math.pow(touch.clientX - joystickStartX, 2) +
+            Math.pow(touch.clientY - joystickStartY, 2)
+        )
+
+        const canShoot =
+          game && yourPlayerId && game.players[yourPlayerId]?.isHunter
 
         if (canShoot && duration < 200 && dist < 10) {
-            const rect = gameContainer.getBoundingClientRect()
-            Rune.actions.shoot({
-                x: touch.clientX - rect.left,
-                y: touch.clientY - rect.top
-            })
+          const rect = gameContainer.getBoundingClientRect()
+          Rune.actions.shoot({
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top,
+          })
         }
       }
     }
@@ -244,17 +255,17 @@ const lobbySwitchTeamBtn = document.getElementById("lobby-switch-team")!
 const lobbyReadyBtn = document.getElementById("lobby-ready")!
 
 lobbySwitchTeamBtn.onclick = () => {
-    if (game && yourPlayerId && game.phase === "LOBBY") {
-        const currentTeam = game.players[yourPlayerId].team
-        const newTeam = currentTeam === "HUNTER" ? "PROP" : "HUNTER"
-        Rune.actions.setTeam(newTeam)
-    }
+  if (game && yourPlayerId && game.phase === "LOBBY") {
+    const currentTeam = game.players[yourPlayerId].team
+    const newTeam = currentTeam === "HUNTER" ? "PROP" : "HUNTER"
+    Rune.actions.setTeam(newTeam)
+  }
 }
 
 lobbyReadyBtn.onclick = () => {
-    if (game && yourPlayerId && game.phase === "LOBBY") {
-        Rune.actions.toggleReady()
-    }
+  if (game && yourPlayerId && game.phase === "LOBBY") {
+    Rune.actions.toggleReady()
+  }
 }
 
 // Help Button & Modal
@@ -284,10 +295,13 @@ helpButton.onclick = () => {
   modalOverlay.style.display = "flex"
 }
 
-modalOverlay.querySelector(".close-modal-btn")!.addEventListener("click", () => {
-  modalOverlay.style.display = "none"
-})
+modalOverlay
+  .querySelector(".close-modal-btn")!
+  .addEventListener("click", () => {
+    modalOverlay.style.display = "none"
+  })
 
+let lastLobbyState = ""
 
 Rune.initClient({
   onChange: ({ game: newGame, yourPlayerId: newYourPlayerId }) => {
@@ -297,64 +311,75 @@ Rune.initClient({
 
     // --- PHASE HANDLING ---
     if (game.phase === "LOBBY") {
-        lobbyContainer.style.display = "flex"
-        gameContainer.style.display = "none"
-        playersSection.style.display = "none"
-        minimap.style.display = "none"
-        joystickContainer.style.display = "none"
-        
-        // Hide Game Actions
-        const changePropBtn = document.getElementById("change-prop-button")
-        if (changePropBtn) changePropBtn.style.display = "none"
-        const smokeBtn = document.getElementById("smoke-bomb-button")
-        if (smokeBtn) smokeBtn.style.display = "none"
-        const rotateBtn = document.getElementById("rotate-prop-button")
-        if (rotateBtn) rotateBtn.style.display = "none"
+      lobbyContainer.style.display = "flex"
+      gameContainer.style.display = "none"
+      playersSection.style.display = "none"
+      minimap.style.display = "none"
+      joystickContainer.style.display = "none"
 
-        // Render Lobby List
+      // Hide Game Actions
+      const changePropBtn = document.getElementById("change-prop-button")
+      if (changePropBtn) changePropBtn.style.display = "none"
+      const smokeBtn = document.getElementById("smoke-bomb-button")
+      if (smokeBtn) smokeBtn.style.display = "none"
+      const rotateBtn = document.getElementById("rotate-prop-button")
+      if (rotateBtn) rotateBtn.style.display = "none"
+
+      // Render Lobby List (Optimized: Only update if state changes)
+      // We use a simplified state representation for the UI to catch relevant changes
+      const currentLobbyState = JSON.stringify(game.players)
+
+      if (currentLobbyState !== lastLobbyState) {
+        lastLobbyState = currentLobbyState
         lobbyPlayerList.innerHTML = ""
-        for (const playerId in game.players) {
-            const player = game.players[playerId]
-            const playerInfo = Rune.getPlayerInfo(playerId)
-            
-            const item = document.createElement("div")
-            item.classList.add("lobby-player-item")
-            
-            const readyClass = player.isReady ? "ready" : ""
-            const teamColor = player.team === "HUNTER" ? "red" : "var(--accent-color)"
-            
-            item.innerHTML = `
-                <img src="${playerInfo.avatarUrl}" class="lobby-avatar ${readyClass}" />
-                <div class="lobby-player-info">
-                    <span class="lobby-player-name">${playerInfo.displayName}</span>
-                    <span class="lobby-player-team" style="color: ${teamColor}">${player.team}</span>
-                </div>
-            `
-            lobbyPlayerList.appendChild(item)
-        }
 
-        // Update My Ready Button State
-        if (yourPlayerId && game.players[yourPlayerId]) {
-            const me = game.players[yourPlayerId]
-            if (me.isReady) {
-                lobbyReadyBtn.innerText = "Not Ready"
-                lobbyReadyBtn.classList.remove("btn-primary")
-                lobbyReadyBtn.classList.add("btn-secondary")
-            } else {
-                lobbyReadyBtn.innerText = "Ready"
-                lobbyReadyBtn.classList.remove("btn-secondary")
-                lobbyReadyBtn.classList.add("btn-primary")
-            }
+        // Sort players to ensure stable list order across clients
+        const sortedPlayerIds = Object.keys(game.players).sort()
+
+        for (const playerId of sortedPlayerIds) {
+          const player = game.players[playerId]
+          const playerInfo = Rune.getPlayerInfo(playerId)
+
+          const item = document.createElement("div")
+          item.classList.add("lobby-player-item")
+
+          const readyClass = player.isReady ? "ready" : ""
+          const teamColor =
+            player.team === "HUNTER" ? "red" : "var(--accent-color)"
+
+          item.innerHTML = `
+                    <img src="${playerInfo.avatarUrl}" class="lobby-avatar ${readyClass}" />
+                    <div class="lobby-player-info">
+                        <span class="lobby-player-name">${playerInfo.displayName}</span>
+                        <span class="lobby-player-team" style="color: ${teamColor}">${player.team}</span>
+                    </div>
+                `
+          lobbyPlayerList.appendChild(item)
         }
-        
-        return // Stop here, don't render game loop
+      }
+
+      // Update My Ready Button State
+      if (yourPlayerId && game.players[yourPlayerId]) {
+        const me = game.players[yourPlayerId]
+        if (me.isReady) {
+          lobbyReadyBtn.innerText = "Not Ready"
+          lobbyReadyBtn.classList.remove("btn-primary")
+          lobbyReadyBtn.classList.add("btn-secondary")
+        } else {
+          lobbyReadyBtn.innerText = "Ready"
+          lobbyReadyBtn.classList.remove("btn-secondary")
+          lobbyReadyBtn.classList.add("btn-primary")
+        }
+      }
+
+      return // Stop here, don't render game loop
     } else {
-        lobbyContainer.style.display = "none"
-        gameContainer.style.display = "block" // Or whatever display was default
-        playersSection.style.display = "block"
-        minimap.style.display = "block"
-        // Joystick visibility handled by touch events mostly, but ensure container is interactable
-        // Action buttons visibility handled below
+      lobbyContainer.style.display = "none"
+      gameContainer.style.display = "block" // Or whatever display was default
+      playersSection.style.display = "block"
+      minimap.style.display = "block"
+      // Joystick visibility handled by touch events mostly, but ensure container is interactable
+      // Action buttons visibility handled below
     }
 
     const { players, mapLayout, remainingTime } = newGame
@@ -424,14 +449,17 @@ Rune.initClient({
       changePropButton.style.display = "flex"
       // changePropButton.innerText = `Change Prop (${yourPlayer.propChangesRemaining})` // Removed text
       changePropButton.disabled = yourPlayer.propChangesRemaining <= 0
-      if (yourPlayer.propChangesRemaining <= 0) changePropButton.style.opacity = "0.5"
+      if (yourPlayer.propChangesRemaining <= 0)
+        changePropButton.style.opacity = "0.5"
       else changePropButton.style.opacity = "1"
 
       // Count Badge for Change Prop
-      let countBadge = changePropButton.querySelector('.count-badge') as HTMLSpanElement
+      let countBadge = changePropButton.querySelector(
+        ".count-badge"
+      ) as HTMLSpanElement
       if (!countBadge) {
-        countBadge = document.createElement('span')
-        countBadge.classList.add('count-badge')
+        countBadge = document.createElement("span")
+        countBadge.classList.add("count-badge")
         changePropButton.appendChild(countBadge)
       }
       countBadge.innerText = yourPlayer.propChangesRemaining.toString()
@@ -466,14 +494,17 @@ Rune.initClient({
       smokeBombButton.style.display = "flex"
       // smokeBombButton.innerText = `Smoke Bomb (${yourPlayer.smokeBombsRemaining})` // Removed text
       smokeBombButton.disabled = yourPlayer.propChangesRemaining <= 0
-       if (yourPlayer.smokeBombsRemaining <= 0) smokeBombButton.style.opacity = "0.5"
+      if (yourPlayer.smokeBombsRemaining <= 0)
+        smokeBombButton.style.opacity = "0.5"
       else smokeBombButton.style.opacity = "1"
 
       // Count Badge for Smoke Bomb
-      let countBadge = smokeBombButton.querySelector('.count-badge') as HTMLSpanElement
+      let countBadge = smokeBombButton.querySelector(
+        ".count-badge"
+      ) as HTMLSpanElement
       if (!countBadge) {
-        countBadge = document.createElement('span')
-        countBadge.classList.add('count-badge')
+        countBadge = document.createElement("span")
+        countBadge.classList.add("count-badge")
         smokeBombButton.appendChild(countBadge)
       }
       countBadge.innerText = yourPlayer.smokeBombsRemaining.toString()
@@ -538,7 +569,7 @@ Rune.initClient({
       // Handle new players joining mid-game or after initUI
       if (!playerElement) {
         const playerInfo = Rune.getPlayerInfo(playerId)
-        
+
         playerElement = document.createElement("div")
         playerElement.classList.add("player")
         gameContainer.appendChild(playerElement)
@@ -567,19 +598,19 @@ Rune.initClient({
         playerElement.style.border = "none"
         playerElement.classList.add("player")
         playerElement.classList.add("prop")
-        
+
         if (player.propType) {
-            const spriteInfo = getSpriteInfo(player.propType)
-            if (spriteInfo) {
-              const propElement = document.createElement("div")
-              propElement.classList.add("prop")
-              propElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
-              propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
-              propElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
-              propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
-              propElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
-              playerElement.appendChild(propElement)
-            }
+          const spriteInfo = getSpriteInfo(player.propType)
+          if (spriteInfo) {
+            const propElement = document.createElement("div")
+            propElement.classList.add("prop")
+            propElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
+            propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
+            propElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
+            propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
+            propElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
+            playerElement.appendChild(propElement)
+          }
         }
 
         playerElement.onclick = null
@@ -702,7 +733,7 @@ Rune.initClient({
 
     // Minimap rendering
     minimap.innerHTML = ""
-    
+
     if (game.roomLayout) {
       for (const room of game.roomLayout) {
         const minimapRoom = document.createElement("div")
@@ -711,7 +742,8 @@ Rune.initClient({
         minimapRoom.style.top = `${(room.y / 2000) * 150}px`
         minimapRoom.style.width = `${(room.width / 2000) * 150}px`
         minimapRoom.style.height = `${(room.height / 2000) * 150}px`
-        minimapRoom.style.backgroundColor = roomColors[room.colorIndex % roomColors.length]
+        minimapRoom.style.backgroundColor =
+          roomColors[room.colorIndex % roomColors.length]
         minimapRoom.style.opacity = "0.5" // Slightly transparent on minimap
         minimap.appendChild(minimapRoom)
       }
@@ -760,7 +792,8 @@ Rune.initClient({
               const minimapPlayer = document.createElement("div")
               minimapPlayer.classList.add("minimap-player")
               // Self is Red, Teammate Hunters are distinct (e.g., Orange) or same Red
-              minimapPlayer.style.backgroundColor = playerId === yourPlayerId ? "red" : "#ff4500" 
+              minimapPlayer.style.backgroundColor =
+                playerId === yourPlayerId ? "red" : "#ff4500"
               minimapPlayer.style.left = `${(player.position.x / 2000) * 150}px`
               minimapPlayer.style.top = `${(player.position.y / 2000) * 150}px`
               minimap.appendChild(minimapPlayer)

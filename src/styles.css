@@ -1,12 +1,14 @@
 :root {
-  --bg-color: #131314;
-  --wall-color: #2d2e30;
-  --wall-border: #3c4043;
-  --ui-bg: rgba(30, 31, 32, 0.85); /* Slightly more opaque */
+  --bg-color: #f5f5dc; /* Beige */
+  --wall-color: #d2b48c; /* Tan */
+  --wall-border: #a0522d; /* Sienna for subtle separation, not a real border */
+  --ui-bg: rgba(30, 31, 32, 0.85);
   --ui-text: #e3e3e3;
   --accent-color: #8ab4f8; 
   --danger-color: #f28b82; 
   --success-color: #81c995; 
+  --tile-seam-color: rgba(0, 0, 0, 0.1); /* Subtle dark for seams */
+  --tile-dirt-color: rgba(0, 0, 0, 0.05); /* Subtle dirt */
 }
 
 body {
@@ -19,28 +21,46 @@ body {
 
 #game-container {
   position: absolute;
-  background-color: var(--bg-color);
+  background-color: var(--bg-color); /* Base floor color */
   transform-origin: top left;
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 50px 50px;
+  /* Removed previous grid background as tiles will provide detail */
+  background-image: none; 
 }
 
 .room {
   position: absolute;
-  z-index: 0;
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-  border-radius: 4px; 
+  z-index: 0; /* Ensures floors are at the bottom */
+  box-shadow: none; /* No depth/shadows for flat tiles */
+  border-radius: 0; /* No rounded corners */
+  /* Simulate floor tiles with repeating linear gradients */
+  background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 48px,
+      var(--tile-seam-color) 48px,
+      var(--tile-seam-color) 50px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 48px,
+      var(--tile-seam-color) 48px,
+      var(--tile-seam-color) 50px
+    );
+  background-size: 50px 50px; /* Tile size */
+  /* Subtle dirt/wear overlay */
+  filter: brightness(1.05) contrast(0.95);
 }
 
 .wall {
   position: absolute;
-  background-color: var(--wall-color);
-  box-shadow: 0 0 10px rgba(0,0,0,0.8);
-  border: 1px solid var(--wall-border);
-  z-index: 10;
+  background-color: var(--wall-color); /* Warm tan wall color */
+  box-shadow: none; /* No shadows for flat perspective */
+  border: none; /* No borders */
+  z-index: 10; /* Walls on top of floors */
   box-sizing: border-box;
+  /* Optional: subtle texture for walls if desired, e.g., gradient */
+  background-image: linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.05));
 }
 
 .player {
@@ -55,7 +75,7 @@ body {
   font-size: 10px;
   box-sizing: border-box;
   z-index: 210;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4); /* Keeping player shadow for clarity, not environment */
 }
 
 /* Remove all identifying markers for players disguised as props */
@@ -79,17 +99,17 @@ body {
   top: 25%;
   left: 50%;
   transform-origin: 25% 50%;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+  filter: none; /* No drop shadow for flat style */
 }
 
 .prop {
   position: absolute;
   background-size: cover;
   z-index: 5;
-  filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
+  filter: none; /* No drop shadow for flat sprites */
 }
 
-/* UI Elements */
+/* UI Elements - keeping them as they are not part of the game environment */
 
 #joystick-container {
   position: fixed;
@@ -359,7 +379,7 @@ body {
 }
 
 .btn-secondary {
-  background-color: rgba(255,255,255,0.1);
+  background-color: #5f6368; /* Dark grey for visibility on beige */
   color: white;
   border: 1px solid rgba(255,255,255,0.2);
 }

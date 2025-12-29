@@ -7,7 +7,7 @@ export interface GameState {
       // Lobby fields
       team: "HUNTER" | "PROP"
       isReady: boolean
-      
+
       // Game fields
       position: { x: number; y: number }
       velocity: { x: number; y: number }
@@ -57,7 +57,13 @@ export interface GameState {
   remainingTime: number
 
   mapLayout: { x: number; y: number; width: number; height: number }[]
-  roomLayout: { x: number; y: number; width: number; height: number; colorIndex: number }[]
+  roomLayout: {
+    x: number
+    y: number
+    width: number
+    height: number
+    colorIndex: number
+  }[]
 }
 
 type GameActions = {
@@ -75,7 +81,7 @@ declare global {
   const Rune: RuneClient<GameState, GameActions>
 }
 
-import { propTypes } from "./spriteManager.ts"
+import { propTypes } from "./shared.ts"
 const ARENA_WIDTH = 2000
 const ARENA_HEIGHT = 2000
 const PLAYER_RADIUS = 25
@@ -124,15 +130,15 @@ function generateMapLayout(): {
     roomCount++
 
     // Decide split direction (favor splitting the longer dimension)
-    const horizontal = height > width ? true : width > height ? false : Math.random() < 0.5
+    const horizontal =
+      height > width ? true : width > height ? false : Math.random() < 0.5
 
     if (horizontal) {
-        // Split horizontally (line across Y axis)
-        // Ensure split is somewhat central to avoid tiny slivers
+      // Split horizontally (line across Y axis)
+      // Ensure split is somewhat central to avoid tiny slivers
       const divideAt =
         Math.floor(Math.random() * (height * 0.4)) + Math.floor(height * 0.3)
-      const doorAt =
-        Math.floor(Math.random() * (width - DOOR_SIZE - 100)) + 50
+      const doorAt = Math.floor(Math.random() * (width - DOOR_SIZE - 100)) + 50
 
       walls.push({ x, y: y + divideAt, width: doorAt, height: WALL_THICKNESS })
       walls.push({
@@ -150,11 +156,10 @@ function generateMapLayout(): {
         height - divideAt - WALL_THICKNESS
       )
     } else {
-        // Split vertically (line across X axis)
+      // Split vertically (line across X axis)
       const divideAt =
         Math.floor(Math.random() * (width * 0.4)) + Math.floor(width * 0.3)
-      const doorAt =
-        Math.floor(Math.random() * (height - DOOR_SIZE - 100)) + 50
+      const doorAt = Math.floor(Math.random() * (height - DOOR_SIZE - 100)) + 50
 
       walls.push({ x: x + divideAt, y, width: WALL_THICKNESS, height: doorAt })
       walls.push({
@@ -176,12 +181,26 @@ function generateMapLayout(): {
 
   // Add outer boundary walls
   walls.push({ x: 0, y: 0, width: ARENA_WIDTH, height: WALL_THICKNESS }) // Top
-  walls.push({ x: 0, y: ARENA_HEIGHT - WALL_THICKNESS, width: ARENA_WIDTH, height: WALL_THICKNESS }) // Bottom
+  walls.push({
+    x: 0,
+    y: ARENA_HEIGHT - WALL_THICKNESS,
+    width: ARENA_WIDTH,
+    height: WALL_THICKNESS,
+  }) // Bottom
   walls.push({ x: 0, y: 0, width: WALL_THICKNESS, height: ARENA_HEIGHT }) // Left
-  walls.push({ x: ARENA_WIDTH - WALL_THICKNESS, y: 0, width: WALL_THICKNESS, height: ARENA_HEIGHT }) // Right
+  walls.push({
+    x: ARENA_WIDTH - WALL_THICKNESS,
+    y: 0,
+    width: WALL_THICKNESS,
+    height: ARENA_HEIGHT,
+  }) // Right
 
-
-  divide(WALL_THICKNESS, WALL_THICKNESS, ARENA_WIDTH - 2 * WALL_THICKNESS, ARENA_HEIGHT - 2 * WALL_THICKNESS)
+  divide(
+    WALL_THICKNESS,
+    WALL_THICKNESS,
+    ARENA_WIDTH - 2 * WALL_THICKNESS,
+    ARENA_HEIGHT - 2 * WALL_THICKNESS
+  )
 
   return { walls, rooms }
 }
@@ -216,73 +235,76 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 function spawnGameEntities(game: GameState) {
-    const mapLayout = game.mapLayout
+  const mapLayout = game.mapLayout
 
-    // Get valid spawn points for players
-    const validPlayerSpawnPoints: { x: number; y: number }[] = []
+  // Re-introduce local copies of global constants for use in function body
+  const localPlayerRadius = PLAYER_RADIUS
+
+  // Get valid spawn points for players
+  const validPlayerSpawnPoints: { x: number; y: number }[] = []
+  for (
+    let x = 25; // PLAYER_RADIUS
+    x < 1975; // ARENA_WIDTH - PLAYER_RADIUS
+    x += 50 // PLAYER_RADIUS * 2
+  ) {
     for (
-      let x = PLAYER_RADIUS;
-      x < ARENA_WIDTH - PLAYER_RADIUS;
-      x += PLAYER_RADIUS * 2
+      let y = 25; // PLAYER_RADIUS
+      y < 1975; // ARENA_HEIGHT - PLAYER_RADIUS
+      y += 50 // PLAYER_RADIUS * 2
     ) {
-      for (
-        let y = PLAYER_RADIUS;
-        y < ARENA_HEIGHT - PLAYER_RADIUS;
-        y += PLAYER_RADIUS * 2
-      ) {
-        if (!isCollidingWithWall(x, y, PLAYER_RADIUS, mapLayout)) {
-          validPlayerSpawnPoints.push({ x, y })
-        }
+      if (!isCollidingWithWall(x, y, localPlayerRadius, mapLayout)) {
+        validPlayerSpawnPoints.push({ x, y })
       }
     }
+  }
+  const shuffledSpawnPoints = shuffleArray(validPlayerSpawnPoints)
+  const playerIds = Object.keys(game.players)
+  // Assign positions and roles based on team choice
+  playerIds.forEach((playerId, index) => {
+    const player = game.players[playerId]
+    const position = shuffledSpawnPoints[index] || { x: 100, y: 100 }
 
-    const shuffledSpawnPoints = shuffleArray(validPlayerSpawnPoints)
-    const playerIds = Object.keys(game.players)
+    player.position = position
+    player.velocity = { x: 0, y: 0 }
+    player.isHunter = player.team === "HUNTER"
+    player.propType = player.isHunter
+      ? undefined
+      : propTypes[Math.floor(Math.random() * propTypes.length)]
+    player.isCaught = false
+    player.health = player.isHunter ? 0 : 100
+    player.propChangesRemaining = player.isHunter ? 0 : 3
+    player.smokeBombsRemaining = player.isHunter ? 0 : 5
+    player.rotation = Math.random() * 360
+  })
 
-    // Assign positions and roles based on team choice
-    playerIds.forEach((playerId, index) => {
-      const player = game.players[playerId]
-      const position = shuffledSpawnPoints[index] || { x: 100, y: 100 }
-
-      player.position = position
-      player.velocity = { x: 0, y: 0 }
-      player.isHunter = player.team === "HUNTER"
-      player.propType = player.isHunter
-          ? undefined
-          : propTypes[Math.floor(Math.random() * propTypes.length)]
-      player.isCaught = false
-      player.health = player.isHunter ? 0 : 100
-      player.propChangesRemaining = player.isHunter ? 0 : 3
-      player.smokeBombsRemaining = player.isHunter ? 0 : 5
-      player.rotation = Math.random() * 360
-    })
-
-    // Initialize props
-    const tempValidSpawnPoints: { x: number; y: number }[] = []
-    // Scan the map for valid non-wall positions
-    for (let x = 50; x < ARENA_WIDTH - 50; x += 40) {
-      for (let y = 50; y < ARENA_HEIGHT - 50; y += 40) {
-        if (!isCollidingWithWall(x, y, 30, mapLayout)) {
-             tempValidSpawnPoints.push({ x, y })
-        }
+  // Initialize props
+  const tempValidSpawnPoints: { x: number; y: number }[] = []
+  // Scan the map for valid non-wall positions
+  for (let x = 50; x < 1950; x += 40) {
+    // ARENA_WIDTH - 50
+    for (let y = 50; y < 1950; y += 40) {
+      // ARENA_HEIGHT - 50
+      if (!isCollidingWithWall(x, y, 30, mapLayout)) {
+        tempValidSpawnPoints.push({ x, y })
       }
     }
-    const validSpawnPoints = shuffleArray(tempValidSpawnPoints)
+  }
+  const validSpawnPoints = shuffleArray(tempValidSpawnPoints)
 
-    const PROP_COUNT = 100
-    game.props = {} // Clear existing props
-    for (let i = 0; i < PROP_COUNT; i++) {
-      if (i >= validSpawnPoints.length) break
+  const PROP_COUNT = 100
+  game.props = {} // Clear existing props
+  for (let i = 0; i < PROP_COUNT; i++) {
+    if (i >= validSpawnPoints.length) break
 
-      const { x, y } = validSpawnPoints[i]
+    const { x, y } = validSpawnPoints[i]
 
-      game.props[`prop${i}`] = {
-        position: { x, y },
-        isTaken: false,
-        propType: propTypes[Math.floor(Math.random() * propTypes.length)],
-        rotation: Math.random() * 360,
-      }
+    game.props[`prop${i}`] = {
+      position: { x, y },
+      isTaken: false,
+      propType: propTypes[Math.floor(Math.random() * propTypes.length)],
+      rotation: Math.random() * 360,
     }
+  }
 }
 
 Rune.initLogic({
@@ -303,61 +325,61 @@ Rune.initLogic({
     }
 
     for (const playerId of allPlayerIds) {
-        initialState.players[playerId] = {
-            team: "PROP", // Default team
-            isReady: false,
-            position: { x: 0, y: 0 },
-            velocity: { x: 0, y: 0 },
-            isHunter: false,
-            isCaught: false,
-            health: 100,
-            propChangesRemaining: 3,
-            smokeBombsRemaining: 5
-        }
+      initialState.players[playerId] = {
+        team: "PROP", // Default team
+        isReady: false,
+        position: { x: 0, y: 0 },
+        velocity: { x: 0, y: 0 },
+        isHunter: false,
+        isCaught: false,
+        health: 100,
+        propChangesRemaining: 3,
+        smokeBombsRemaining: 5,
+      }
     }
 
     return initialState
   },
   events: {
     playerJoined: (playerId, { game }) => {
-        game.players[playerId] = {
-            team: "PROP",
-            isReady: false,
-            position: { x: 0, y: 0 },
-            velocity: { x: 0, y: 0 },
-            isHunter: false,
-            // If game is already playing, join as caught (spectator)
-            isCaught: game.phase === "PLAYING",
-            health: 100,
-            propChangesRemaining: 3,
-            smokeBombsRemaining: 5
-        }
+      game.players[playerId] = {
+        team: "PROP",
+        isReady: false,
+        position: { x: 0, y: 0 },
+        velocity: { x: 0, y: 0 },
+        isHunter: false,
+        // If game is already playing, join as caught (spectator)
+        isCaught: game.phase === "PLAYING",
+        health: 100,
+        propChangesRemaining: 3,
+        smokeBombsRemaining: 5,
+      }
     },
     playerLeft: (playerId, { game }) => {
-        delete game.players[playerId]
+      delete game.players[playerId]
     },
   },
   actions: {
     setTeam: (team, { game, playerId }) => {
-        if (game.phase !== "LOBBY") return
-        if (game.players[playerId]) {
-            game.players[playerId].team = team
-            game.players[playerId].isReady = false // Reset ready on change
-        }
+      if (game.phase !== "LOBBY") return
+      if (game.players[playerId]) {
+        game.players[playerId].team = team
+        game.players[playerId].isReady = false // Reset ready on change
+      }
     },
     toggleReady: (_, { game, playerId }) => {
-        if (game.phase !== "LOBBY") return
-        if (game.players[playerId]) {
-            game.players[playerId].isReady = !game.players[playerId].isReady
-        }
+      if (game.phase !== "LOBBY") return
+      if (game.players[playerId]) {
+        game.players[playerId].isReady = !game.players[playerId].isReady
+      }
 
-        // Check if all players are ready
-        const allPlayers = Object.values(game.players)
-        if (allPlayers.length > 0 && allPlayers.every(p => p.isReady)) {
-            // Start Game
-            game.phase = "PLAYING"
-            spawnGameEntities(game)
-        }
+      // Check if all players are ready
+      const allPlayers = Object.values(game.players)
+      if (allPlayers.length > 0 && allPlayers.every((p) => p.isReady)) {
+        // Start Game
+        game.phase = "PLAYING"
+        spawnGameEntities(game)
+      }
     },
     move: ({ x, y }, { game, playerId }) => {
       if (game.phase !== "PLAYING" || game.gameOver) return

@@ -418,8 +418,15 @@ body {
   left: 50%;
   transform: translateX(-50%);
   font-size: 14px;
+  font-weight: bold; /* Make bold */
   z-index: 100;
-  color: #aaa;
+  color: var(--ui-text); /* Brighter color */
+  background-color: var(--ui-bg); /* Add background for visibility */
+  padding: 4px 10px; /* Add padding */
+  border-radius: 15px; /* Rounded corners */
+  backdrop-filter: blur(5px); /* Blurred background */
+  border: 1px solid rgba(255,255,255,0.1); /* Subtle border */
+  text-shadow: 0 0 5px rgba(0,0,0,0.3); /* Subtle shadow */
 }
 
 /* Minimap */
@@ -565,10 +572,10 @@ body {
   position: absolute;
   width: 8px;
   height: 8px;
-  background-color: #ffeb3b; 
+  background-color: #f44336; /* Red bullet */
   border-radius: 50%;
   z-index: 20;
-  box-shadow: 0 0 8px #ffeb3b;
+  box-shadow: 0 0 8px #ef5350; /* Red shadow */
 }
 
 .smoke-bomb {

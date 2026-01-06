@@ -15,7 +15,11 @@ const propElements: { [key: string]: HTMLDivElement } = {}
 const bulletElements: { [key: string]: HTMLDivElement } = {}
 const smokeElements: { [key: string]: HTMLDivElement } = {}
 const wallElements: HTMLDivElement[] = []
-let uiInitialized = false
+
+let inputListenersInitialized = false
+let renderedMapRef:
+  | { x: number; y: number; width: number; height: number }[]
+  | null = null
 
 // Define a nice palette (Gemini/Modern Dark Mode inspired)
 const roomColors = [
@@ -47,23 +51,29 @@ setInterval(() => {
   pingTimer.innerText = `Ping in: ${pingCountdown}`
 }, 1000)
 
-function initUI(playerIds: PlayerId[], game: GameState) {
-  playerIds.forEach((playerId) => {
-    const playerInfo = Rune.getPlayerInfo(playerId)
-    const playerElement = document.createElement("div")
-    playerElement.classList.add("player")
-    gameContainer.appendChild(playerElement)
-    playerElements[playerId] = playerElement
+function resetGameUI(game: GameState) {
+  // Clear container
+  gameContainer.innerHTML = ""
 
-    const li = document.createElement("li")
-    li.innerHTML = `<img src="${playerInfo.avatarUrl}" />
-           <span>${playerInfo.displayName}</span>`
-    playersSection.appendChild(li)
-  })
+  // Clear element caches
+  for (const key in playerElements) delete playerElements[key]
+  for (const key in propElements) delete propElements[key]
+  for (const key in bulletElements) delete bulletElements[key]
+  for (const key in smokeElements) delete smokeElements[key]
+  wallElements.length = 0
 
+  // Reset players list
+  playersSection.innerHTML = ""
+
+  // Render Map
+  renderMap(game)
+}
+
+function renderMap(game: GameState) {
   gameContainer.style.width = `2000px`
   gameContainer.style.height = `2000px`
 
+  // Render Rooms
   if (game.roomLayout) {
     for (const room of game.roomLayout) {
       const roomElement = document.createElement("div")
@@ -78,6 +88,7 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     }
   }
 
+  // Render Walls
   for (const wall of game.mapLayout) {
     const wallElement = document.createElement("div")
     wallElement.classList.add("wall")
@@ -89,15 +100,14 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     wallElements.push(wallElement)
   }
 
-  console.log("game.props", game.props)
+  // Render Props (Initial creation)
   for (const propId in game.props) {
     const prop = game.props[propId]
     const propElement = document.createElement("div")
     propElement.classList.add("prop")
-    console.log("prop.propType", prop.propType)
+
     if (prop.propType) {
       const spriteInfo = getSpriteInfo(prop.propType)
-      console.log("spriteInfo", spriteInfo)
       if (spriteInfo) {
         propElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
         propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
@@ -110,6 +120,14 @@ function initUI(playerIds: PlayerId[], game: GameState) {
     propElements[propId] = propElement
   }
 
+  // Initialize Input Listeners (Once)
+  if (!inputListenersInitialized) {
+    initInputListeners()
+    inputListenersInitialized = true
+  }
+}
+
+function initInputListeners() {
   gameContainer.addEventListener("mousemove", (e) => {
     if (!game || !yourPlayerId || !game.players[yourPlayerId].isHunter) return
 
@@ -317,6 +335,10 @@ Rune.initClient({
       minimap.style.display = "none"
       joystickContainer.style.display = "none"
 
+      // Cleanup Game Over Message if returning to lobby (e.g. restart)
+      const gameOverMsg = document.getElementById("game-over-message")
+      if (gameOverMsg) gameOverMsg.remove()
+
       // Hide Game Actions
       const changePropBtn = document.getElementById("change-prop-button")
       if (changePropBtn) changePropBtn.style.display = "none"
@@ -395,10 +417,16 @@ Rune.initClient({
       return
     }
 
-    if (!uiInitialized) {
-      initUI(Object.keys(players), newGame)
+    // Detect Map Change (Start of new game)
+    if (mapLayout !== renderedMapRef) {
+      resetGameUI(newGame)
+      renderedMapRef = mapLayout
+    }
 
-      uiInitialized = true
+    // Cleanup Game Over Message if playing
+    if (!newGame.gameOver) {
+      const gameOverMsg = document.getElementById("game-over-message")
+      if (gameOverMsg) gameOverMsg.remove()
     }
 
     const yourPlayer = players[yourPlayerId!]
@@ -826,14 +854,20 @@ Rune.initClient({
     }
 
     if (newGame.gameOver) {
-      const message = document.createElement("div")
-      message.id = "game-over-message"
       if (newGame.players[yourPlayerId!].isHunter) {
-        message.innerText = "You Win!"
+        // Hunter wins, rely on Rune's game over screen
+        const message = document.getElementById("game-over-message")
+        if (message) message.remove()
       } else {
+        // Prop loses, show local "You Lose!"
+        let message = document.getElementById("game-over-message")
+        if (!message) {
+          message = document.createElement("div")
+          message.id = "game-over-message"
+          document.body.appendChild(message)
+        }
         message.innerText = "You Lose!"
       }
-      document.body.appendChild(message)
     }
   },
 })

@@ -31,15 +31,18 @@
       async function loadImages() {
         const imageContainer = document.getElementById("image-container");
         try {
-          const response = await fetch("./src/assets/prop-coordinates.json");
+          const response = await fetch(`./src/assets/prop-coordinates.json?t=${Date.now()}`);
           const propData = await response.json();
+          setTimeout(() => {
+            console.log("Prop Data:", propData);
+          }, 5000);
 
           for (const imageName in propData) {
             const container = document.createElement("div");
             container.classList.add("container");
 
             const img = document.createElement("img");
-            img.src = `./src/assets/fprops/${imageName}`;
+            img.src = `./src/assets/fprops/${imageName}?t=${Date.now()}`;
             container.appendChild(img);
 
             const sprites = propData[imageName].sprites;

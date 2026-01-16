@@ -49,6 +49,7 @@ export interface GameState {
       propType: string
       rotation: number
       lastHitTime?: number
+      health: number
     }
   }
 
@@ -303,6 +304,7 @@ function spawnGameEntities(game: GameState) {
       isTaken: false,
       propType: propTypes[Math.floor(Math.random() * propTypes.length)],
       rotation: Math.random() * 360,
+      health: 30,
     }
   }
 }
@@ -603,26 +605,6 @@ Rune.initLogic({
 
         if (!game.bullets[bulletId]) continue
 
-        // Check for collision with props
-        /*
-        for (const propId in game.props) {
-          const prop = game.props[propId]
-          const distance = Math.sqrt(
-            Math.pow(bullet.position.x - prop.position.x, 2) +
-              Math.pow(bullet.position.y - prop.position.y, 2)
-          )
-
-          if (distance < PLAYER_RADIUS) {
-            prop.isHit = true
-            prop.lastHitTime = Rune.gameTime()
-            delete game.bullets[bulletId]
-            break
-          }
-        }
-        */
-
-        if (!game.bullets[bulletId]) continue
-
         // Remove bullets that go off-screen
         if (
           bullet.position.x < 0 ||
@@ -631,16 +613,6 @@ Rune.initLogic({
           bullet.position.y > ARENA_HEIGHT
         ) {
           delete game.bullets[bulletId]
-        }
-      }
-
-      // Update props that have been hit
-      for (const propId in game.props) {
-        const prop = game.props[propId]
-        if (prop.isHit && prop.lastHitTime) {
-          if (Rune.gameTime() - prop.lastHitTime > 500) {
-            prop.isHit = false
-          }
         }
       }
 

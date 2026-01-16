@@ -34,7 +34,7 @@ export function getSpriteInfo(propType: string) {
 
   return {
     spriteSheetUrl: new URL(
-      `/src/assets/fprops/${spriteSheetName}`,
+      `./assets/fprops/${spriteSheetName}`,
       import.meta.url
     ).href,
     ...sprite,

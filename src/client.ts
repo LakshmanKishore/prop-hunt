@@ -3,6 +3,7 @@ import "./styles.css"
 import { PlayerId } from "rune-sdk"
 import { GameState } from "./logic.ts"
 import { getSpriteInfo } from "./spriteManager.ts"
+import gunImg from "./assets/gun.svg"
 
 const gameContainer = document.getElementById("game-container")!
 const minimap = document.getElementById("minimap")!
@@ -613,7 +614,7 @@ Rune.initClient({
         playerElement.innerHTML = `<img src="${
           Rune.getPlayerInfo(playerId).avatarUrl
         }" class="avatar" /><img
-            src="/src/assets/gun.svg"
+            src="${gunImg}"
             class="gun"
         />`
         playerElement.style.backgroundColor = "red"
@@ -638,6 +639,14 @@ Rune.initClient({
             propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
             propElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
             playerElement.appendChild(propElement)
+
+            // Add avatar indicator for your own prop
+            if (playerId === yourPlayerId) {
+              const indicator = document.createElement("img")
+              indicator.src = Rune.getPlayerInfo(playerId).avatarUrl
+              indicator.classList.add("prop-indicator")
+              playerElement.appendChild(indicator)
+            }
           }
         }
 
@@ -646,7 +655,20 @@ Rune.initClient({
 
       playerElement.style.left = `${player.position.x - 25}px`
       playerElement.style.top = `${player.position.y - 25}px`
-      playerElement.style.transform = `rotate(${player.rotation || 0}deg)`
+
+      if (player.isHunter) {
+        playerElement.style.transform = `rotate(${player.rotation || 0}deg)`
+      } else {
+        // For props, we don't rotate the container (so UI stays upright)
+        playerElement.style.transform = `rotate(0deg)`
+        // Instead, we rotate the inner sprite div
+        const propVisual = playerElement.querySelector(".prop") as HTMLElement
+        if (propVisual) {
+          propVisual.style.transform = `rotate(${player.rotation || 0}deg)`
+          // Set origin to match the player center (since playerElement is 50x50, center is 25,25)
+          propVisual.style.transformOrigin = "25px 25px"
+        }
+      }
 
       if (player.isCaught) {
         playerElement.style.opacity = "0.5"
@@ -698,11 +720,8 @@ Rune.initClient({
         propElement.style.left = `${prop.position.x}px`
         propElement.style.top = `${prop.position.y}px`
         propElement.style.transform = `rotate(${prop.rotation}deg)`
-        if (prop.isHit) {
-          propElement.classList.add("prop-hit")
-        } else {
-          propElement.classList.remove("prop-hit")
-        }
+
+        // Health bars and hit effects removed for static props as they are now non-collidable
       }
     }
 

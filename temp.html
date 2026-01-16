@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-g" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bounding Box Viewer</title>
     <style>
@@ -10,11 +10,13 @@
         display: inline-block;
         margin: 20px;
         border: 1px solid black;
+        background-color: #eee;
       }
       .bounding-box {
         position: absolute;
-        border: 2px solid red;
+        border: 1px solid red;
         box-sizing: border-box;
+        pointer-events: none;
       }
       img {
         display: block;
@@ -30,9 +32,9 @@
         const imageContainer = document.getElementById("image-container");
         try {
           const response = await fetch("./src/assets/prop-coordinates.json");
-          const propCoordinates = await response.json();
+          const propData = await response.json();
 
-          for (const imageName in propCoordinates) {
+          for (const imageName in propData) {
             const container = document.createElement("div");
             container.classList.add("container");
 
@@ -40,8 +42,8 @@
             img.src = `./src/assets/fprops/${imageName}`;
             container.appendChild(img);
 
-            const boxes = propCoordinates[imageName];
-            for (const box of boxes) {
+            const sprites = propData[imageName].sprites;
+            for (const box of sprites) {
               const boxDiv = document.createElement("div");
               boxDiv.classList.add("bounding-box");
               boxDiv.style.left = `${box.minX}px`;

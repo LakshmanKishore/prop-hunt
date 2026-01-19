@@ -460,15 +460,16 @@ Rune.initClient({
       // Icon: Shuffle / Refresh
       changePropButton.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>`
       document.body.appendChild(changePropButton)
-      changePropButton.onclick = () => {
-        if (
-          yourPlayerId &&
-          !players[yourPlayerId].isHunter &&
-          !players[yourPlayerId].isCaught &&
-          players[yourPlayerId].propChangesRemaining > 0
-        ) {
-          Rune.actions.changeProp()
-        }
+    }
+
+    changePropButton.onclick = () => {
+      if (
+        yourPlayerId &&
+        !players[yourPlayerId].isHunter &&
+        !players[yourPlayerId].isCaught &&
+        players[yourPlayerId].propChangesRemaining > 0
+      ) {
+        Rune.actions.changeProp()
       }
     }
 
@@ -505,15 +506,16 @@ Rune.initClient({
       // Icon: Cloud / Smoke
       smokeBombButton.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>`
       document.body.appendChild(smokeBombButton)
-      smokeBombButton.onclick = () => {
-        if (
-          yourPlayerId &&
-          !players[yourPlayerId].isHunter &&
-          !players[yourPlayerId].isCaught &&
-          players[yourPlayerId].smokeBombsRemaining > 0
-        ) {
-          Rune.actions.useSmokeBomb()
-        }
+    }
+
+    smokeBombButton.onclick = () => {
+      if (
+        yourPlayerId &&
+        !players[yourPlayerId].isHunter &&
+        !players[yourPlayerId].isCaught &&
+        players[yourPlayerId].smokeBombsRemaining > 0
+      ) {
+        Rune.actions.useSmokeBomb()
       }
     }
 
@@ -522,7 +524,7 @@ Rune.initClient({
     } else {
       smokeBombButton.style.display = "flex"
       // smokeBombButton.innerText = `Smoke Bomb (${yourPlayer.smokeBombsRemaining})` // Removed text
-      smokeBombButton.disabled = yourPlayer.propChangesRemaining <= 0
+      smokeBombButton.disabled = yourPlayer.smokeBombsRemaining <= 0
       if (yourPlayer.smokeBombsRemaining <= 0)
         smokeBombButton.style.opacity = "0.5"
       else smokeBombButton.style.opacity = "1"
@@ -550,14 +552,15 @@ Rune.initClient({
       // Icon: Rotate Right
       rotatePropButton.innerHTML = `<svg viewBox="0 0 24 24"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03zm3.89-2.42l1.42 1.41c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.48z"/></svg>`
       document.body.appendChild(rotatePropButton)
-      rotatePropButton.onclick = () => {
-        if (
-          yourPlayerId &&
-          !players[yourPlayerId].isHunter &&
-          !players[yourPlayerId].isCaught
-        ) {
-          Rune.actions.rotateProp()
-        }
+    }
+
+    rotatePropButton.onclick = () => {
+      if (
+        yourPlayerId &&
+        !players[yourPlayerId].isHunter &&
+        !players[yourPlayerId].isCaught
+      ) {
+        Rune.actions.rotateProp()
       }
     }
 
@@ -635,8 +638,12 @@ Rune.initClient({
             propElement.classList.add("prop")
             propElement.style.backgroundImage = `url(${spriteInfo.spriteSheetUrl})`
             propElement.style.backgroundPosition = `-${spriteInfo.minX}px -${spriteInfo.minY}px`
-            propElement.style.width = `${spriteInfo.maxX - spriteInfo.minX}px`
-            propElement.style.height = `${spriteInfo.maxY - spriteInfo.minY}px`
+            const width = spriteInfo.maxX - spriteInfo.minX
+            const height = spriteInfo.maxY - spriteInfo.minY
+            propElement.style.width = `${width}px`
+            propElement.style.height = `${height}px`
+            propElement.style.left = `${(50 - width) / 2}px`
+            propElement.style.top = `${(50 - height) / 2}px`
             propElement.style.backgroundSize = `${spriteInfo.sheetWidth}px ${spriteInfo.sheetHeight}px`
             playerElement.appendChild(propElement)
 
@@ -665,8 +672,8 @@ Rune.initClient({
         const propVisual = playerElement.querySelector(".prop") as HTMLElement
         if (propVisual) {
           propVisual.style.transform = `rotate(${player.rotation || 0}deg)`
-          // Set origin to match the player center (since playerElement is 50x50, center is 25,25)
-          propVisual.style.transformOrigin = "25px 25px"
+          // Set origin to match the player center
+          propVisual.style.transformOrigin = "center"
         }
       }
 
